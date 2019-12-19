@@ -604,6 +604,169 @@ module IND where
   trivial-subst-var' p (suc x) ist1 ist2 = refl
 
 ----------------------------------------------------------------------
+-- Alternative inductive definition of recursive session types
+
+module IND2 where
+
+  mutual
+    data Type (n : ℕ) : Set where
+      TUnit TInt : Type n
+      TPair : Type n → Type n → Type n
+      TChan : SType n → Type n
+    
+    data SType (n : ℕ) : Set where
+      gdd : (gst : GType n) → SType n
+      rec : (gst : GType (suc n) ) → SType n
+      var : (x : Fin n) → SType n
+
+    data GType (n : ℕ) : Set where
+      transmit : (d : Dir) (t : Type n) (s : SType n) → GType n
+      choice : (d : Dir) (m : ℕ) (alt : Fin m → SType n) → GType n
+      end : GType n
+
+  TType = Type
+
+----------------------------------------------------------------------
+
+  weaken1'N : Fin (suc n) → Fin n → Fin (suc n)
+  weaken1'N zero x = suc x
+  weaken1'N (suc i) zero = zero
+  weaken1'N (suc i) (suc x) = suc (weaken1'N i x)
+
+  weaken1'S : Fin (suc n) → SType n → SType (suc n)
+  weaken1'G : Fin (suc n) → GType n → GType (suc n)
+  weaken1'T : Fin (suc n) → Type n → Type (suc n)
+
+  weaken1'S i (gdd gst) = gdd (weaken1'G i gst)
+  weaken1'S i (rec gst) = rec (weaken1'G (suc i) gst)
+  weaken1'S i (var x) = var (weaken1'N i x)
+
+  weaken1'G i (transmit d t s) = transmit d (weaken1'T i t) (weaken1'S i s)
+  weaken1'G i (choice d m alt) = choice d m (weaken1'S i ∘ alt)
+  weaken1'G i end = end
+
+  weaken1'T i TUnit = TUnit
+  weaken1'T i TInt = TInt
+  weaken1'T i (TPair t₁ t₂) = TPair (weaken1'T i t₁) (weaken1'T i t₂)
+  weaken1'T i (TChan x) = TChan (weaken1'S i x)
+
+  weaken1S : SType n → SType (suc n)
+  weaken1G : GType n → GType (suc n)
+  weaken1T : Type n → Type (suc n)
+
+  weaken1S = weaken1'S zero
+  weaken1G = weaken1'G zero
+  weaken1T = weaken1'T zero
+
+----------------------------------------------------------------------
+
+  exts : (j : Fin n) → (Fin n → SType (toℕ j)) → (Fin (suc n) → SType (toℕ (suc j)))
+  exts j map 0F      = var zero
+  exts j map (suc i) = weaken1S (map i)
+
+----------------------------------------------------------------------
+-- simultaneous substitution
+
+  sim-substS : SType n → (j : Fin n) → (i : Fin n → SType (toℕ j)) → SType (toℕ j)
+  sim-substG : GType n → (j : Fin n) → (i : Fin n → SType (toℕ j)) → GType (toℕ j)
+  sim-substT : Type n → (j : Fin n) → (i : Fin n → SType (toℕ j)) → Type (toℕ j)
+
+  sim-substS (gdd gst) j ϱ = gdd (sim-substG gst j ϱ)
+  sim-substS (rec gst) j ϱ = rec (sim-substG gst (suc j) (exts j ϱ)) 
+  sim-substS (var x) j ϱ   = ϱ x
+
+  sim-substG (transmit d t s) j ϱ = transmit d (sim-substT t j ϱ) (sim-substS s j ϱ) 
+  sim-substG (choice d m alt) j ϱ = choice d m (λ x → sim-substS (alt x) j ϱ)
+  sim-substG end j ϱ              = end
+
+  sim-substT TUnit j ϱ        = TUnit
+  sim-substT TInt j ϱ         = TInt
+  sim-substT (TPair t t₁) j ϱ = TPair (sim-substT t j ϱ) (sim-substT t₁ j ϱ)
+  sim-substT (TChan x) j ϱ    = TChan (sim-substS x j ϱ)
+
+----------------------------------------------------------------------
+
+  module sanity-check where
+
+    -- Single substitution
+    rc : SType 1F
+    rc = rec (transmit SND TInt (var 1F))
+
+    rc' : SType 0F
+    rc' = rec (transmit SND TInt (gdd end))
+
+    substmp : (i : Fin 1F) → SType 0
+    substmp 0F = gdd end
+
+    chk : rc' ≡ sim-substS rc 0F substmp
+    chk = refl
+
+    -- Simultaneous substitution
+    ic : SType 2F
+    ic = rec (transmit SND (TChan (var 1F)) (var 2F))
+
+    ic' : SType 0F
+    ic' = rec (transmit SND (TChan (gdd end)) (gdd end))
+
+    substmp' : (i : Fin 2F) → SType 0
+    substmp' i = gdd end
+
+    chk' : ic' ≡ sim-substS ic 0F substmp'
+    chk' = refl
+
+    ic'' : SType 1F
+    ic'' = rec (transmit SND (TChan (var 1F)) (gdd end))
+
+    substmp'' : (i : Fin 2F) → SType 1
+    substmp'' 0F = var 0F
+    substmp'' 1F = gdd end
+
+    chk'' : ic'' ≡ sim-substS ic 1F substmp''
+    chk'' = refl
+
+----------------------------------------------------------------------
+
+  n=fromℕtoℕn : (toℕ (fromℕ n)) ≡ n
+  n=fromℕtoℕn {zero}  = refl
+  n=fromℕtoℕn {suc n} = cong suc (n=fromℕtoℕn {n})
+  
+  {-# REWRITE n=fromℕtoℕn #-}
+
+----------------------------------------------------------------------
+
+  dualS : SType n → SType n
+  dualG : GType n → GType n
+
+  dualG (transmit d t st) = transmit (dual-dir d) t (dualS st)
+  dualG (choice d m alt) = choice (dual-dir d) m (dualS ∘ alt)
+  dualG end = end
+
+  dualS (gdd gst) = gdd (dualG gst)
+  dualS{n} (rec (transmit d t s)) =
+    let tsubs = weaken1T (sim-substT t (fromℕ n) ϱ) in rec (transmit (dual-dir d) tsubs (dualS s))
+    where
+      ϱ : (i : Fin (suc n)) → SType n
+      ϱ 0F      = rec (transmit d t s)
+      ϱ (suc i) = var i
+  dualS (rec (choice d m alt)) = rec (dualG (choice d m alt))
+  dualS (rec end) = rec end
+  dualS (var x) = var x
+
+----------------------------------------------------------------------
+
+  module sanity-check2 where
+    -- S    = μx.!x.x
+    S : SType 0
+    S = rec (transmit SND (TChan (var 0F)) (var 0F))
+
+    -- D(S) = μx.?(μx.!x.x).x
+    SD : SType 0
+    SD = rec (transmit RCV (weaken1T (TChan S)) (var 0F))
+
+    chk : SD ≡ dualS S
+    chk = refl
+
+----------------------------------------------------------------------
 -- provide an embedding of IND to COI
 
 open COI
@@ -798,4 +961,5 @@ Equiv.force (dual-compatibleS (rec gst))
 dual-compatibleG (transmit d t s) = eq-transmit (dual-dir d) ≈ᵗ-refl (dual-compatibleS s)
 dual-compatibleG (choice d m alt) = eq-choice (dual-dir d) (dual-compatibleS ∘ alt)
 dual-compatibleG end = eq-end
+
 
