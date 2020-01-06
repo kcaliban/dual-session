@@ -616,7 +616,7 @@ module IND2 where
     
     data SType (n : ℕ) : Set where
       gdd : (gst : GType n) → SType n
-      rec : (gst : GType (suc n) ) → SType n
+      rec : (gst : GType (suc n)) → SType n
       var : (x : Fin n) → SType n
 
     data GType (n : ℕ) : Set where
@@ -734,6 +734,15 @@ module IND2 where
 
 ----------------------------------------------------------------------
 
+  t-subst-0 : GType (suc n) → (Type (suc n) → Type (suc n))
+  t-subst-0 g TUnit = TUnit
+  t-subst-0 g TInt = TInt
+  t-subst-0 g (TPair t t₁) = TPair (t-subst-0 g t) (t-subst-0 g t₁)
+  t-subst-0 g (TChan (gdd gst)) = TChan (gdd gst)
+  t-subst-0 g (TChan (rec gst)) = TChan (rec gst)
+  t-subst-0 g (TChan (var 0F))      = weaken1T (TChan (rec g))
+  t-subst-0 g (TChan (var (suc x))) = TChan (var (suc x))
+  
   dualS' : SType n → (σ : Type n → Type n) → SType n
   dualG' : GType n → (σ : Type n → Type n) → GType n
 
@@ -742,16 +751,7 @@ module IND2 where
   dualG' end σ = end
 
   dualS' (gdd gst) σ = gdd (dualG' gst σ)
-  dualS'{n} (rec s) σ = rec (dualG' s σ')
-    where
-      σ' : Type (suc n) → Type (suc n)
-      σ' TUnit = TUnit
-      σ' TInt = TInt
-      σ' (TPair x x₁) = TPair (σ' x) (σ' x₁)
-      σ' (TChan (gdd gst)) = TChan (gdd gst)
-      σ' (TChan (rec gst)) = TChan (rec gst)
-      σ' (TChan (var 0F))      = weaken1T (TChan (rec s))
-      σ' (TChan (var (suc x))) = TChan (var (suc x))
+  dualS'{n} (rec s) σ = rec (dualG' s (t-subst-0 s))
   dualS' (var x) σ = var x
 
   dualS : SType n → SType n
@@ -994,5 +994,83 @@ Equiv.force (dual-compatibleS (rec gst))
 dual-compatibleG (transmit d t s) = eq-transmit (dual-dir d) ≈ᵗ-refl (dual-compatibleS s)
 dual-compatibleG (choice d m alt) = eq-choice (dual-dir d) (dual-compatibleS ∘ alt)
 dual-compatibleG end = eq-end
+
+----------------------------------------------------------------------
+-- embedding IND2 to COI
+open IND2
+
+indalt2coiT : IND2.Type 0 → COI.Type
+indalt2coiS : IND2.SType 0 → COI.SType
+indalt2coiG : IND2.GType 0 → COI.STypeF COI.SType
+
+indalt2coiT TUnit = TUnit
+indalt2coiT TInt = TInt
+indalt2coiT (TPair it it₁) = TPair (indalt2coiT it) (indalt2coiT it₁)
+indalt2coiT (TChan st) = TChan (indalt2coiS st)
+
+indalt2coiG (transmit d t ist) = transmit d (indalt2coiT t) (indalt2coiS ist)
+indalt2coiG (choice d m alt) = choice d m (indalt2coiS ∘ alt)
+indalt2coiG end = end
+
+SType.force (indalt2coiS (gdd gst)) = indalt2coiG gst
+SType.force (indalt2coiS (rec gst)) = indalt2coiG (sim-substG gst 0F (λ x → rec gst))
+
+----------------------------------------------------------------------
+
+-- show that dual of IND2 is compatible with unfolding
+-- i.e.
+-- COI.dual ∘ indalt2coi ≈ indalt2coi ∘ IND2.dual
+
+dual-compatibleS' : (ist : IND2.SType 0) →
+  COI.dual (indalt2coiS ist) ≈ indalt2coiS (IND2.dualS ist)
+dual-compatibleG' : (gst : IND2.GType 0) →
+  COI.dualF (indalt2coiG gst) ≈' indalt2coiG (IND2.dualG gst)
+
+Equiv.force (dual-compatibleS' (gdd gst)) = dual-compatibleG' gst
+Equiv.force (dual-compatibleS' (rec gst)) = {!dual-compatibleG' (sim-substG gst 0F (λ x → rec gst))!}
+
+dual-compatibleG' (transmit d t s) = eq-transmit (dual-dir d) ≈ᵗ-refl (dual-compatibleS' s)
+dual-compatibleG' (choice d m alt) = eq-choice (dual-dir d) (dual-compatibleS' ∘ alt)
+dual-compatibleG' end = eq-end
+
+----------------------------------------------------------------------
+
+module failedattempt where
+ -- show that
+ --   (i) IND.dual ∘ ind2ind ≡ ind2ind ∘ IND2.dual
+ -- we already have that
+ --   (ii)  COI.dual ∘ ind2coi ∘ ind2ind ≈ ind2coi ∘ IND.dual ∘ ind2ind
+ -- using (i) in (ii) leads to
+ --   COI.dual ∘ ind2coi ∘ ind2ind ≈ ind2coi ∘ ind2ind ∘ IND2.dual
+ -- which means dualS for IND2 is compatible with unfolding
+
+  ind2indT : IND2.Type n → IND.Type n
+  ind2indS : IND2.SType n → IND.SType n
+  ind2indG : IND2.GType n → IND.GType n
+
+  ind2indT TUnit = TUnit
+  ind2indT TInt = TInt
+  ind2indT (TPair t t₁) = TPair (ind2indT t) (ind2indT t₁)
+  ind2indT (TChan x) = TChan (ind2indS x)
+
+  ind2indS {n} (gdd gst) = gdd (ind2indG gst)
+  ind2indS {n} (rec gst) = rec (ind2indG gst)
+  ind2indS {n} (var x) = var POS x
+
+  ind2indG (transmit d t s) = transmit d (ind2indT t) (ind2indS s)
+  ind2indG (choice d m alt) = choice d m (λ x → ind2indS (alt x))
+  ind2indG end = end
+
+  -- (i)
+  dual-compatible-indindS : (s : IND2.SType n) → IND.dualS (ind2indS s) ≡ ind2indS (IND2.dualS s)
+  dual-compatible-indindG : (g : IND2.GType n) → IND.dualG (ind2indG g) ≡ ind2indG (IND2.dualG g)
+
+  dual-compatible-indindS (gdd gst) = cong (gdd) (dual-compatible-indindG gst) 
+  dual-compatible-indindS (rec gst) = {!!}
+  dual-compatible-indindS (var x) = {!!} -- var NEG x ≠ var POS x
+
+  dual-compatible-indindG (transmit d t s) = {!!}
+  dual-compatible-indindG (choice d m alt) = {!!}
+  dual-compatible-indindG end              = {!!}
 
 
