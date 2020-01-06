@@ -734,37 +734,70 @@ module IND2 where
 
 ----------------------------------------------------------------------
 
+  dualS' : SType n → (σ : Type n → Type n) → SType n
+  dualG' : GType n → (σ : Type n → Type n) → GType n
+
+  dualG' (transmit d t st) σ = transmit (dual-dir d) (σ t) (dualS' st σ)
+  dualG' (choice d m alt) σ = choice (dual-dir d) m (λ m → dualS' (alt m) σ)
+  dualG' end σ = end
+
+  dualS' (gdd gst) σ = gdd (dualG' gst σ)
+  dualS'{n} (rec s) σ = rec (dualG' s σ')
+    where
+      σ' : Type (suc n) → Type (suc n)
+      σ' TUnit = TUnit
+      σ' TInt = TInt
+      σ' (TPair x x₁) = TPair (σ' x) (σ' x₁)
+      σ' (TChan (gdd gst)) = TChan (gdd gst)
+      σ' (TChan (rec gst)) = TChan (rec gst)
+      σ' (TChan (var 0F))      = weaken1T (TChan (rec s))
+      σ' (TChan (var (suc x))) = TChan (var (suc x))
+  dualS' (var x) σ = var x
+
   dualS : SType n → SType n
   dualG : GType n → GType n
 
-  dualG (transmit d t st) = transmit (dual-dir d) t (dualS st)
-  dualG (choice d m alt) = choice (dual-dir d) m (dualS ∘ alt)
-  dualG end = end
-
-  dualS (gdd gst) = gdd (dualG gst)
-  dualS{n} (rec (transmit d t s)) =
-    let tsubs = weaken1T (sim-substT t (fromℕ n) ϱ) in rec (transmit (dual-dir d) tsubs (dualS s))
-    where
-      ϱ : (i : Fin (suc n)) → SType n
-      ϱ 0F      = rec (transmit d t s)
-      ϱ (suc i) = var i
-  dualS (rec (choice d m alt)) = rec (dualG (choice d m alt))
-  dualS (rec end) = rec end
-  dualS (var x) = var x
+  dualS s = dualS' s (λ x → x)
+  dualG g = dualG' g (λ x → x)
 
 ----------------------------------------------------------------------
 
   module sanity-check2 where
+
+    -- example 1
     -- S    = μx.!x.x
     S : SType 0
     S = rec (transmit SND (TChan (var 0F)) (var 0F))
 
     -- D(S) = μx.?(μx.!x.x).x
-    SD : SType 0
-    SD = rec (transmit RCV (weaken1T (TChan S)) (var 0F))
+    DS : SType 0
+    DS = rec (transmit RCV (weaken1T (TChan S)) (var 0F))
 
-    chk : SD ≡ dualS S
+    chk : DS ≡ dualS S
     chk = refl
+
+    -- example 2
+    -- S' = μx.!x.!x.x
+    S' : SType 0
+    S' = rec (transmit SND (TChan (var 0F)) (gdd ((transmit SND (TChan (var 0F)) (var 0F)))))
+
+    -- D(S') = μx.?(μx.!x.!x.x).?(μx.!x.!x.x).x
+    DS' : SType 0
+    DS' =  rec (transmit RCV (weaken1T (TChan S')) (gdd ((transmit RCV (weaken1T (TChan S')) (var 0F)))))
+
+    chk' : DS' ≡ dualS S'
+    chk' = refl
+
+    -- example 3
+    -- S'' = μx.!x.(μy.!y.y)
+    S'' : SType 0
+    S'' = rec (transmit SND (TChan (var 0F)) (rec (transmit SND (TChan (var 0F)) (var 0F))))
+
+    -- D(S'') = μx.?(μx.!x.(μy.!y.y)).(μy.?(μy.!y.y).y)
+    DS'' = rec (transmit RCV (weaken1T (TChan S'')) (weaken1S DS))
+
+    chk'' : DS'' ≡ dualS S''
+    chk'' = refl
 
 ----------------------------------------------------------------------
 -- provide an embedding of IND to COI
