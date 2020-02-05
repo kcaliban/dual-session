@@ -1462,6 +1462,15 @@ module dual-compatible-IND2COI where
 
 -- dualG (st-substG' 0F (rec gst) gst) ≡ st-substG' 0F (dualS (rec gst)) (dualG' (λ x → weaken1S (st-substS' 0F (rec gst) x)) gst)
 
+  lemmS' : (σ : IND2.SType n → IND2.SType n) (j : Fin (suc n)) (s : IND2.SType n) (st : IND2.SType (suc n))
+    → dualS' σ (st-substS' j s st) ≡ st-substS' j (dualS s) (dualS' (weaken1S ∘ σ ∘ (st-substS' 0F s)) st)
+  lemmG' : (σ : IND2.SType n → IND2.SType n) (j : Fin (suc n)) (s : IND2.SType n) (gst : IND2.GType (suc n))
+    → dualG' σ (st-substG' j s gst) ≡ st-substG' j (dualS s) (dualG' (weaken1S ∘ σ ∘ (st-substS' 0F s)) gst)
+
+  lemmS' σ j s (gdd gst) = cong gdd {!!}
+  lemmS' σ j s (rec gst) = cong rec {!lemmG' (λ x → weaken1S (σ (st-substS' 0F (rec (st-substG' (suc j) (weaken1S s) gst)) x))) (suc j) (weaken1S s) gst!}
+  lemmS' σ j s (var x) = {!!}
+
 ----------------------------------------------------------------------
 
   dual-compatibleS : (ist : IND2.SType 0) →
