@@ -1460,21 +1460,7 @@ module dual-compatible-IND2COI where
 
 ----------------------------------------------------------------------
 
--- need to show the following equivalence, perhaps with several definitions for G/S taking a proof of (rec gst ≡ s)?
---
 -- dualG (st-substG' 0F (rec gst) gst) ≡ st-substG' 0F (dualS (rec gst)) (dualG' (λ x → weaken1S (st-substS' 0F (rec gst) x)) gst)
-
-  dualS-rec-t : (d : Dir) (t : IND2.Type 1F) (s : IND2.SType 1F)
-    → dualS (st-substS' 0F (rec (transmit d t s)) s) ≡ st-substS' 0F (dualS (rec (transmit d t s))) (dualS' (λ x → weaken1S (st-substS' 0F (rec (transmit d t s)) x)) s)
-  dualS-rec-t d t (gdd gst) = cong gdd {!!}
-  dualS-rec-t d t (rec gst) = {!!}
-  dualS-rec-t d t (var x) = {!!}
-
-  dualG-rec : (gst : IND2.GType 1F)
-    → dualG (st-substG' 0F (rec gst) gst) ≡ st-substG' 0F (dualS (rec gst)) (dualG' (λ x → weaken1S (st-substS' 0F (rec gst) x)) gst)
-  dualG-rec (transmit d t s) = cong₂ (transmit (dual-dir d)) {!!} {!!}
-  dualG-rec (choice d m alt) = cong (choice (dual-dir d) m) (ext (λ x → {!!}))
-  dualG-rec end = refl
 
 ----------------------------------------------------------------------
 
