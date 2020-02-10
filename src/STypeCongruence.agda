@@ -2,7 +2,7 @@ module STypeCongruence where
 
 open import Data.Fin
 
-open import Duality
+open import DualCoinductive
 
 open import Direction
 

@@ -4,14 +4,11 @@ open import Data.Nat
 open import Data.Fin hiding (_+_)
 open import Data.Product
 open import Data.Vec hiding (map)
-
 open import Function
-
 open import Relation.Binary.PropositionalEquality hiding (Extensionality)
-
-open import Duality
 open import Direction
 open import Extensionality
+open import DualCoinductive
 
 -- session types restricted to tail recursion
 -- can be recognized by type of TChan constructor
