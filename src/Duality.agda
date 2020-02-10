@@ -14,6 +14,8 @@ open import Relation.Binary.PropositionalEquality hiding (Extensionality)
 
 open import Agda.Builtin.Equality.Rewrite
 
+open import Extensionality
+
 -- variables
 
 variable
@@ -46,27 +48,7 @@ n+sucm {suc n} = cong suc (n+sucm{n})
 
 {-# REWRITE n+sucm #-}
 
-----------------------------------------------------------------------
--- extensionality
-
-postulate
-  ext : {A : Set}{B : A → Set}{f : (x : A) → B x} {g : (x : A) → B x} →
-    (∀ x → f x ≡ g x) → f ≡ g
-
-----------------------------------------------------------------------
--- direction
-
-data Dir : Set where
-  SND RCV : Dir
-
--- dual
-dual-dir : Dir → Dir
-dual-dir SND = RCV
-dual-dir RCV = SND
-
-dual-dir-inv : (d : Dir) → dual-dir (dual-dir d) ≡ d
-dual-dir-inv SND = refl
-dual-dir-inv RCV = refl
+open import Direction
 
 ----------------------------------------------------------------------
 -- session types coinductively
@@ -92,9 +74,9 @@ module COI where
   open SType
 
   variable
-    t t₁ t₂ t₁' t₂' : Type
-    s s₁ s₂ : SType
-    s' : STypeF SType
+    t t₁ t₂ t₃ t₁' t₂' t₃' : Type
+    s s₁ s₂ s₃ : SType
+    s' s₁' s₂' s₃' : STypeF SType
 
   -- type equivalence
   data EquivT (R : SType → SType → Set) : Type → Type → Set where
@@ -119,6 +101,7 @@ module COI where
   _≈'_ = EquivF Equiv
   _≈ᵗ_ = EquivT Equiv
 
+  -- reflexivity
   ≈ᵗ-refl : t ≈ᵗ t
   ≈-refl : s ≈ s
   ≈'-refl : s' ≈' s'
@@ -133,6 +116,89 @@ module COI where
   ≈ᵗ-refl {TInt} = eq-int
   ≈ᵗ-refl {TPair t t₁} = eq-pair ≈ᵗ-refl ≈ᵗ-refl
   ≈ᵗ-refl {TChan x} = eq-chan ≈-refl
+
+  -- symmetry
+  ≈-symm : s₁ ≈ s₂ → s₂ ≈ s₁
+  ≈'-symm : s₁' ≈' s₂' → s₂' ≈' s₁'
+  ≈ᵗ-symm : t₁ ≈ᵗ t₂ → t₂ ≈ᵗ t₁
+
+  force (≈-symm s₁≈s₂) = ≈'-symm (force s₁≈s₂)
+
+  ≈'-symm (eq-transmit d x x₁) = eq-transmit d (≈ᵗ-symm x) (≈-symm x₁)
+  ≈'-symm (eq-choice d x) = eq-choice d (λ i → ≈-symm (x i))
+  ≈'-symm eq-end = eq-end
+
+  ≈ᵗ-symm eq-unit = eq-unit
+  ≈ᵗ-symm eq-int = eq-int
+  ≈ᵗ-symm (eq-pair t₁≈t₂ t₁≈t₃) = eq-pair (≈ᵗ-symm t₁≈t₂) (≈ᵗ-symm t₁≈t₃)
+  ≈ᵗ-symm (eq-chan x) = eq-chan (≈-symm x)
+  
+  -- transitivity
+  ≈-trans : s₁ ≈ s₂ → s₂ ≈ s₃ → s₁ ≈ s₃
+  ≈'-trans : s₁' ≈' s₂' → s₂' ≈' s₃' → s₁' ≈' s₃'
+  ≈ᵗ-trans : t₁ ≈ᵗ t₂ → t₂ ≈ᵗ t₃ → t₁ ≈ᵗ t₃
+
+  force (≈-trans s₁≈s₂ s₂≈s₃) = ≈'-trans (force s₁≈s₂) (force s₂≈s₃)
+  
+  ≈'-trans (eq-transmit d tt₁ ss₁) (eq-transmit .d tt₂ ss₂) = eq-transmit d (≈ᵗ-trans tt₁ tt₂) (≈-trans ss₁ ss₂)
+  ≈'-trans (eq-choice d x) (eq-choice .d x₁) = eq-choice d (λ i → ≈-trans (x i) (x₁ i))
+  ≈'-trans eq-end eq-end = eq-end
+  
+  ≈ᵗ-trans eq-unit eq-unit = eq-unit
+  ≈ᵗ-trans eq-int eq-int = eq-int
+  ≈ᵗ-trans (eq-pair t₁≈ᵗt₂ t₁≈ᵗt₃) (eq-pair t₂≈ᵗt₃ t₂≈ᵗt₄) = eq-pair (≈ᵗ-trans t₁≈ᵗt₂ t₂≈ᵗt₃) (≈ᵗ-trans t₁≈ᵗt₃ t₂≈ᵗt₄)
+  ≈ᵗ-trans (eq-chan ss₁) (eq-chan ss₂) = eq-chan (≈-trans ss₁ ss₂)
+
+  ----------------------------------------------------------------------
+  -- relational duality
+  data DualD : Dir → Dir → Set where
+    dual-sr : DualD SND RCV
+    dual-rs : DualD RCV SND
+
+  -- session type duality
+  data DualF (R : SType → SType → Set) : STypeF SType → STypeF SType → Set where
+    dual-transmit : DualD d₁ d₂ → t₁ ≈ᵗ t₂ → R s₁ s₂ → DualF R (transmit d₁ t₁ s₁) (transmit d₂ t₂ s₂)
+    dual-choice : ∀ {alt alt'} → DualD d₁ d₂ → ((i : Fin m) → R (alt i) (alt' i)) → DualF R (choice d₁ m alt) (choice d₂ m alt')
+    dual-end : DualF R end end
+
+  record Dual (s₁ : SType) (s₂ : SType) : Set where
+    coinductive
+    field force : DualF Dual (force s₁) (force s₂)
+
+  -- open Dual
+
+  _⊥_ = Dual
+  _⊥'_ = DualF Dual
+  -- _≈ᵗ_ = EquivT Equiv
+
+  -- symmetric
+
+  DualD-symm : DualD d₁ d₂ → DualD d₂ d₁
+  DualD-symm dual-sr = dual-rs
+  DualD-symm dual-rs = dual-sr
+
+  ⊥-symm : s₁ ⊥ s₂ → s₂ ⊥ s₁
+  ⊥'-symm : s₁' ⊥' s₂' → s₂' ⊥' s₁'
+
+  Dual.force (⊥-symm s₁⊥s₂) = ⊥'-symm (Dual.force s₁⊥s₂)
+
+  ⊥'-symm (dual-transmit x x₁ x₂) = dual-transmit (DualD-symm x) (≈ᵗ-symm x₁) (⊥-symm x₂)
+  ⊥'-symm (dual-choice x x₁) = dual-choice (DualD-symm x) (⊥-symm ∘ x₁)
+  ⊥'-symm dual-end = dual-end
+
+  -- involutory
+  DualD-inv : DualD d₁ d₂ → DualD d₂ d₃ → d₁ ≡ d₃
+  DualD-inv dual-sr dual-rs = refl
+  DualD-inv dual-rs dual-sr = refl
+
+  ⊥-inv : s₁ ⊥ s₂ → s₂ ⊥ s₃ → s₁ ≈ s₃
+  ⊥'-inv : s₁' ⊥' s₂' → s₂' ⊥' s₃' → s₁' ≈' s₃'
+
+  force (⊥-inv s₁⊥s₂ s₂⊥s₃) = ⊥'-inv (Dual.force s₁⊥s₂) (Dual.force s₂⊥s₃)
+
+  ⊥'-inv (dual-transmit dd₁ tt₁ ss₁) (dual-transmit dd₂ tt₂ ss₂) rewrite DualD-inv dd₁ dd₂ = eq-transmit _ (≈ᵗ-trans tt₁ tt₂) (⊥-inv ss₁ ss₂)
+  ⊥'-inv (dual-choice dd₁ ss₁) (dual-choice dd₂ ss₂) rewrite DualD-inv dd₁ dd₂ = eq-choice _ (λ i → ⊥-inv (ss₁ i) (ss₂ i))
+  ⊥'-inv dual-end dual-end = eq-end
 
   ----------------------------------------------------------------------
   -- duality
@@ -158,6 +224,39 @@ module COI where
     rewrite dual-dir-inv d = eq-choice d (dual-involution ∘ alt)
   dual-involutionF end = eq-end
 
+  -----------------------------------------------------------------------
+  -- relational duality vs functional duality
+
+  -- soundness
+
+  dual-soundD : DualD d (dual-dir d)
+  dual-soundD {SND} = dual-sr
+  dual-soundD {RCV} = dual-rs
+
+  dual-soundS : s ⊥ dual s
+  dual-soundF : s' ⊥' dualF s'
+  
+  Dual.force dual-soundS = dual-soundF
+
+  dual-soundF {transmit d t s} = dual-transmit dual-soundD ≈ᵗ-refl dual-soundS
+  dual-soundF {choice d m alt} = dual-choice dual-soundD (λ i → dual-soundS)
+  dual-soundF {end} = dual-end
+
+  -- completeness
+
+  dual-completeD : DualD d₁ d₂ → d₁ ≡ dual-dir d₂
+  dual-completeD dual-sr = refl
+  dual-completeD dual-rs = refl
+
+  dual-completeS : s₁ ⊥ s₂ → s₁ ≈ dual s₂
+  dual-completeF : s₁' ⊥' s₂' → s₁' ≈' dualF s₂'
+  
+  force (dual-completeS s₁⊥s₂) = dual-completeF (Dual.force s₁⊥s₂)
+  
+  dual-completeF (dual-transmit dd tt ss) rewrite dual-completeD dd = eq-transmit _ tt (dual-completeS ss)
+  dual-completeF (dual-choice dd x₁) rewrite dual-completeD dd = eq-choice _ (λ i → dual-completeS (x₁ i))
+  dual-completeF dual-end = eq-end
+
 ----------------------------------------------------------------------
 -- session type inductively with explicit rec
 
@@ -169,31 +268,33 @@ module IND where
   mutual
     data Type (n : ℕ) : Set where
       TUnit TInt : Type n
-      TPair : Type n → Type n → Type n
-      TChan : SType n → Type n
+      TPair : (T₁ : Type n) (T₂ : Type n) → Type n
+      TChan : (S : SType n) → Type n
     
     data SType (n : ℕ) : Set where
-      gdd : (gst : GType n) → SType n
-      rec : (gst : GType (suc n) ) → SType n
+      gdd : (G : GType n) → SType n
+      rec : (G : GType (suc n) ) → SType n
       var : (p : Polarity) → (x : Fin n) → SType n
 
     data GType (n : ℕ) : Set where
-      transmit : (d : Dir) (t : Type n) (s : SType n) → GType n
+      transmit : (d : Dir) (T : Type n) (S : SType n) → GType n
       choice : (d : Dir) (m : ℕ) (alt : Fin m → SType n) → GType n
       end : GType n
     
   TType = Type
 
+  -- weakening
+
   weakenS : (n : ℕ) → SType m → SType (m + n)
   weakenG : (n : ℕ) → GType m → GType (m + n)
-  weakenT : (n : ℕ) → Type m → Type (m + n)
+  weakenT : (n : ℕ) → TType m → TType (m + n)
   
   weakenS n (gdd gst) = gdd (weakenG n gst)
   weakenS n (rec gst) = rec (weakenG n gst)
   weakenS n (var p x) = var p (inject+ n x)
 
   weakenG n (transmit d t s) = transmit d (weakenT n t) (weakenS n s)
-  weakenG n (choice d m alt) = choice d m (λ i → weakenS n (alt i))
+  weakenG n (choice d m alt) = choice d m (weakenS n ∘ alt)
   weakenG n end = end
 
   weakenT n TUnit = TUnit
@@ -205,6 +306,20 @@ module IND where
   weaken1{m} stm with weakenS 1 stm
   ... | r rewrite n+1=suc-n {m} = r
 
+  module CheckWeaken where
+    s0 : SType 0
+    s0 = rec (transmit SND TUnit (var POS zero))
+    s1 : SType 1
+    s1 = rec (transmit SND TUnit (var POS zero))
+    s2 : SType 2
+    s2 = rec (transmit SND TUnit (var POS zero))
+
+    check-weakenS1 : weakenS 1 s0 ≡ s1
+    check-weakenS1 = cong rec (cong (transmit SND TUnit) refl)
+
+    check-weakenS2 : weakenS 2 s0 ≡ s2
+    check-weakenS2 = cong rec (cong (transmit SND TUnit) refl)
+
   weaken1'N : Fin (suc n) → Fin n → Fin (suc n)
   weaken1'N zero x = suc x
   weaken1'N (suc i) zero = zero
@@ -212,7 +327,7 @@ module IND where
 
   weaken1'S : Fin (suc n) → SType n → SType (suc n)
   weaken1'G : Fin (suc n) → GType n → GType (suc n)
-  weaken1'T : Fin (suc n) → Type n → Type (suc n)
+  weaken1'T : Fin (suc n) → TType n → TType (suc n)
 
   weaken1'S i (gdd gst) = gdd (weaken1'G i gst)
   weaken1'S i (rec gst) = rec (weaken1'G (suc i) gst)
@@ -235,6 +350,27 @@ module IND where
   weaken1G = weaken1'G zero
   weaken1T = weaken1'T zero
 
+  module CheckWeaken1' where
+    sxy : ∀ n → Fin (suc n) → SType n
+    sxy n x = rec (transmit SND TUnit (var POS x))
+
+    s00 : SType 0
+    s00 = sxy 0 0F
+    s10 : SType 1
+    s10 = sxy 1 0F
+    s11 : SType 1
+    s11 = sxy 1 1F
+    s22 : SType 2
+    s22 = sxy 2 2F
+  
+    check-weaken-s01 : weaken1'S 0F s00 ≡ s10
+    check-weaken-s01 = refl
+
+    check-weaken-s1-s2 : weaken1'S 0F s11 ≡ s22
+    check-weaken-s1-s2 = refl
+
+    check-weaken-s21 : weaken1'S 1F (sxy 2 1F) ≡ sxy 3 1F
+    check-weaken-s21 = refl
 ----------------------------------------------------------------------
 
   dual-pol : Polarity → Polarity
@@ -610,6 +746,73 @@ module IND where
   trivial-subst-var' p (suc x) ist1 ist2 = refl
 
 ----------------------------------------------------------------------
+  -- equivalence
+  variable
+    t t₁ t₂ t₁' t₂' : Type n
+    s s₁ s₂ : SType n
+    g g₁ g₂ : GType n
+
+  unfold : SType 0 → GType 0
+  unfold (gdd gst) = gst
+  unfold (rec gst) = st-substG gst 0F (rec gst)
+
+  -- type equivalence
+  data EquivT (R : SType n → SType n → Set) : Type n → Type n → Set where
+    eq-unit : EquivT R TUnit TUnit
+    eq-int  : EquivT R TInt TInt
+    eq-pair : EquivT R t₁ t₁' → EquivT R t₂ t₂' → EquivT R (TPair t₁ t₂) (TPair t₁' t₂')
+    eq-chan : R s₁ s₂ → EquivT R (TChan s₁) (TChan s₂)
+
+  -- session type equivalence
+  data EquivG (R : SType n → SType n → Set) : GType n → GType n → Set where
+    eq-transmit : (d : Dir) → EquivT R t₁ t₂ → R s₁ s₂ → EquivG R (transmit d t₁ s₁) (transmit d t₂ s₂)
+    eq-choice : ∀ {alt alt'} → (d : Dir) → ((i : Fin m) → R (alt i) (alt' i)) → EquivG R (choice d m alt) (choice d m alt')
+    eq-end : EquivG R end end
+
+  record Equiv (s₁ s₂ : SType 0) : Set where
+    coinductive
+    field force : EquivG Equiv (unfold s₁) (unfold s₂)
+
+  open Equiv
+
+  _≈_ = Equiv
+  _≈'_ = EquivG Equiv
+  _≈ᵗ_ = EquivT Equiv
+
+  -- reflexive
+  
+  ≈-refl : s ≈ s
+  ≈'-refl : g ≈' g
+  ≈ᵗ-refl : t ≈ᵗ t
+
+  force (≈-refl {s}) = ≈'-refl
+
+  ≈'-refl {transmit d t s} = eq-transmit d ≈ᵗ-refl ≈-refl
+  ≈'-refl {choice d m alt} = eq-choice d (λ i → ≈-refl)
+  ≈'-refl {end} = eq-end
+
+  ≈ᵗ-refl {TUnit} = eq-unit
+  ≈ᵗ-refl {TInt} = eq-int
+  ≈ᵗ-refl {TPair t t₁} = eq-pair ≈ᵗ-refl ≈ᵗ-refl
+  ≈ᵗ-refl {TChan x} = eq-chan ≈-refl
+  
+  -- symmetric
+
+  ≈-symm : s₁ ≈ s₂ → s₂ ≈ s₁
+  ≈'-symm : g₁ ≈' g₂ → g₂ ≈' g₁
+  ≈ᵗ-symm : t₁ ≈ᵗ t₂ → t₂ ≈ᵗ t₁
+
+  force (≈-symm s₁≈s₂) = ≈'-symm (force s₁≈s₂)
+  
+  ≈'-symm (eq-transmit d x x₁) = eq-transmit d (≈ᵗ-symm x) (≈-symm x₁)
+  ≈'-symm (eq-choice d x) = eq-choice d (≈-symm ∘ x)
+  ≈'-symm eq-end = eq-end
+
+  ≈ᵗ-symm eq-unit = eq-unit
+  ≈ᵗ-symm eq-int = eq-int
+  ≈ᵗ-symm (eq-pair t₁≈ᵗt₂ t₁≈ᵗt₃) = eq-pair (≈ᵗ-symm t₁≈ᵗt₂) (≈ᵗ-symm t₁≈ᵗt₃)
+  ≈ᵗ-symm (eq-chan x) = eq-chan (≈-symm x)
+
 ----------------------------------------------------------------------
 -- Alternative inductive definition of recursive session types
 
@@ -947,7 +1150,7 @@ module dual-compatible-INDCOI where
   -- provide an embedding of IND to COI
 
   open COI
-  open IND
+  open IND hiding (_≈_ ; _≈'_ ; ≈-refl ; ≈'-refl ; ≈ᵗ-refl)
 
   ind2coiT : IND.Type 0 → COI.Type
   ind2coiS : IND.SType 0 → COI.SType
@@ -965,7 +1168,7 @@ module dual-compatible-INDCOI where
   SType.force (ind2coiS (gdd gst)) = ind2coiG gst
   SType.force (ind2coiS (rec gst)) = ind2coiG (st-substG gst zero (rec gst))
 
-  ----------------------------------------------------------------------
+----------------------------------------------------------------------
 
   subst-weakenS : (s : IND.SType (suc n)) (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) (s0 : IND.SType 0)
     → st-substS (weaken1'S (inject₁ j) s) (suc i) s0 ≡ weaken1'S j (st-substS s i s0)
@@ -1017,7 +1220,7 @@ module dual-compatible-INDCOI where
   subst-swap-dualG (choice d m alt) i = cong (choice d m) (ext (λ x → subst-swap-dualS (alt x) i))
   subst-swap-dualG end i = refl
 
-----------------------------------------------------------------------
+  ----------------------------------------------------------------------
 
   swap-i-weakenS : (i : Fin (suc n)) (s : IND.SType n) → swap-polS i (weaken1'S i s) ≡ weaken1'S i s
   swap-i-weakenG : (i : Fin (suc n)) (g : IND.GType n) → swap-polG i (weaken1'G i g) ≡ weaken1'G i g
@@ -1072,7 +1275,7 @@ module dual-compatible-INDCOI where
   subst-swapT ist i j (TPair t t₁) = cong₂ TPair (subst-swapT ist i j t) (subst-swapT ist i j t₁)
   subst-swapT ist i j (TChan x) = cong TChan (subst-swapS ist i j x)
 
-----------------------------------------------------------------------
+  ----------------------------------------------------------------------
 
   dual-recT' : (t : TType (suc n)) (i : Fin (suc n)) (ist : IND.SType 0)
     → st-substT (swap-polT i t) i (dualS ist) ≡ st-substT t i ist
@@ -1098,7 +1301,7 @@ module dual-compatible-INDCOI where
   dual-recS' (var p (suc x)) (suc i) ist rewrite (subst-swap-dualS{ist = ist} (var p (suc x)) (suc i))
     = refl
 
-----------------------------------------------------------------------
+  ----------------------------------------------------------------------
 
   -- show that the dualS function is compatible with unfolding
   -- that is
@@ -1566,112 +1769,6 @@ module dual-compatible-IND2COI' where
 ----------------------------------------------------------------------
 ----------------------------------------------------------------------
 
-{-
-  dual-weaken-substG : (j i : Fin (suc n)) (s s' : IND2.SType (suc n)) (gst : IND2.GType (suc (suc n)))
-    → dualG' (λ x → weaken1S (st-substS'' j s (st-substS' 0F s' x))) gst
-      ≡
-      dualG' (st-substS'' (suc j) (weaken1S s)) (t-substG 0F (weaken1S s') gst)
-  dual-weaken-substS : (j i : Fin (suc n)) (s s' : IND2.SType (suc n)) (st : IND2.SType (suc (suc n)))
-    → dualS' (λ x → weaken1S (st-substS'' j s (st-substS' 0F s' x))) st
-      ≡
-      dualS' (st-substS'' (suc j) (weaken1S s)) (t-substS 0F (weaken1S s') st)
-
-  dual-weaken-substS j i s s' (gdd gst) = {!!}
-  dual-weaken-substS j i s s' (rec gst) = cong rec {!!}
-  dual-weaken-substS j i s s' (var x) = {!!}
-
-  -- Lemma not general enough, rec case induces (weaken1S ∘ st-substS'' ∘ st-substS')
-
-  dual-tsubstS : (j : Fin (suc n)) (s : IND2.SType (suc n)) (st : IND2.SType (suc n))
-    → dualS' (st-substS'' j s) st ≡ dualS' (λ x → x) (t-substS j s st)
-  dual-tsubstG : (j : Fin (suc n)) (s : IND2.SType (suc n)) (gst : IND2.GType (suc n))
-    → dualG' (st-substS'' j s) gst ≡ dualG' (λ x → x) (t-substG j s gst)
-  dual-tsubstT : (j : Fin (suc n)) (s : IND2.SType (suc n)) (t : IND2.Type (suc n))
-    → dualT' (st-substS'' j s) t ≡ dualT' (λ x → x) (t-substT j s t)
-
-  dual-tsubstS j s (gdd gst) = cong gdd (dual-tsubstG j s gst)
-  dual-tsubstS {n} j s (rec gst) = {!!}
--- rewrite (dual-weaken-substG j 0F s (rec gst) gst) = {!!}
---  (ext λ x → weaken-subst'-subst''S 0F (rec (t-substG (suc j) (weaken1S s) gst)) x) -- =  {!!}                                    
-
-  dual-tsubstS j s (var x) = refl
-
-  dual-tsubstG j s (transmit d t s₁) = cong₂ (transmit (dual-dir d)) (dual-tsubstT j s t) (dual-tsubstS j s s₁)
-  dual-tsubstG j s (choice d m alt) = cong (choice (dual-dir d) m) (ext (λ x → dual-tsubstS j s (alt x)))
-  dual-tsubstG j s end = refl
-
-  dual-tsubstT j s TUnit = refl
-  dual-tsubstT j s TInt = refl
-  dual-tsubstT j s (TPair t t₁) = cong₂ TPair (dual-tsubstT j s t) (dual-tsubstT j s t₁)
-  dual-tsubstT j s (TChan x) = refl
-
-  -- has to be generalized
-  dual-lemmaG : (gst : GType 1F)
-    → st-substG' 0F (rec (dualG (t-substG 0F (rec (weaken1'G 1F gst)) gst))) (dualG (t-substG 0F (rec (weaken1'G 1F gst)) gst)) ≡ dualG (st-substG' 0F (rec gst) gst)
--}
-{-
-
-  -- rep-exts n (λ x → s') n ≡ rep-weaken1S n s
-  rep-exts-weaken : (n : ℕ) (s : IND2.SType 0F)
-    → rep-exts n (λ x → s) (fromℕ n) ≡ rep-weaken1S n s
-  rep-exts-weaken 0F s = refl
-  rep-exts-weaken (suc n) s = cong weaken1S (rep-exts-weaken n s)
-
-  st-subst-simsubstS : (s' : IND2.SType 0F) (s : IND2.SType (suc n)) →
-    st-substS' (fromℕ n) (rep-weaken1S n s') s ≡ sim-substS s (fromℕ n) (rep-exts n (λ x → s'))
-  st-subst-simsubstG : (s' : IND2.SType 0F) (g : IND2.GType (suc n)) → 
-    st-substG' (fromℕ n) (rep-weaken1S n s') g ≡ sim-substG g (fromℕ n) (rep-exts n (λ x → s'))
-  st-subst-simsubstT : (s' : IND2.SType 0F) (t : IND2.Type (suc n)) → 
-    st-substT' (fromℕ n) (rep-weaken1S n s') t ≡ sim-substT t (fromℕ n) (rep-exts n (λ x → s'))
-
-  st-subst-simsubstS s' (gdd gst) = cong gdd (st-subst-simsubstG s' gst)
-  st-subst-simsubstS s' (rec gst) = cong rec (st-subst-simsubstG s' gst)
-  st-subst-simsubstS{n} s' (var x) = {!!}
-
-  st-subst-simsubstG s' (transmit d t s) = {!!}
-  st-subst-simsubstG s' (choice d m alt) = {!!}
-  st-subst-simsubstG s' end = refl
-
-  st-subst-simsubstT s' TUnit = refl
-  st-subst-simsubstT s' TInt = refl
-  st-subst-simsubstT s' (TPair t t₁) = cong₂ TPair (st-subst-simsubstT s' t) (st-subst-simsubstT s' t₁)
-  st-subst-simsubstT s' (TChan x) = cong TChan (st-subst-simsubstS s' x)
-
-----------------------------------------------------------------------
-
-  rep-exts' : (j : ℕ) → (Fin (suc n) → IND2.SType (suc n)) → (Fin (suc n + j) → IND2.SType (suc n + j))
-  rep-exts' 0F σ = σ
-  rep-exts' (suc j) σ = exts' (rep-exts' j σ)
-
-  t-subst-simsubstS : (s' : IND2.SType 1F) (s : IND2.SType (suc n)) →
-    t-substS (fromℕ n) (rep-weaken1S n s') s ≡ t-simsubstS (rep-exts' n (λ x → s')) s
-  t-subst-simsubstG : (s' : IND2.SType 1F) (g : IND2.GType (suc n)) →
-    t-substG (fromℕ n) (rep-weaken1S n s') g ≡ t-simsubstG (rep-exts' n (λ x → s')) g
-  t-subst-simsubstT : (s' : IND2.SType 1F) (t : IND2.Type (suc n)) →
-    t-substT (fromℕ n) (rep-weaken1S n s') t ≡ t-simsubstT (rep-exts' n (λ x → s')) t
-
-  t-subst-simsubstS s' (gdd gst) = cong gdd (t-subst-simsubstG s' gst)
-  t-subst-simsubstS s' (rec gst) = cong rec (t-subst-simsubstG s' gst)
-  t-subst-simsubstS s' (var x) = refl
-
-  t-subst-simsubstG s' (transmit d t s) = {!!}
-  t-subst-simsubstG s' (choice d m alt) = {!!}
-  t-subst-simsubstG s' end = {!!}
-
-  t-subst-simsubstT s' TUnit = {!!}
-  t-subst-simsubstT s' TInt = {!!}
-  t-subst-simsubstT s' (TPair t t₁) = {!!}
-  t-subst-simsubstT s' (TChan (gdd gst)) = cong TChan (t-subst-simsubstS s' (gdd gst))
-  t-subst-simsubstT s' (TChan (rec gst)) = cong TChan (t-subst-simsubstS s' (rec gst))
-  t-subst-simsubstT{n} s' (TChan (var x))
-    with fromℕ n
-  ... | fin-n with compare fin-n x
-  t-subst-simsubstT {n} s' (TChan (var x)) | .(inject least) | less .x least = {!!}
-  t-subst-simsubstT {n} s' (TChan (var .fin-n)) | fin-n | equal .fin-n = {!!}
-  t-subst-simsubstT {n} s' (TChan (var .(inject least))) | fin-n | greater .fin-n least = {!!}  
-
- 
--}
 
 
 
