@@ -263,13 +263,9 @@ module IND where
     ⟪_,_⟫ : Stack n → SType (suc n) → Stack (suc n)
 
   -- i = n => impossible case, empty Stack
-  get : {n : ℕ} → (i : Fin n) → Stack n → SType (n ∸ (toℕ i))
-  get {suc n} 0F ⟪ σ , x ⟫ = x
+  get : {n : ℕ} → (i : Fin n) → Stack n → Stack (n ∸ (suc (toℕ i))) × SType (n ∸ (toℕ i))
+  get {suc n} 0F ⟪ σ , x ⟫ = σ , x
   get {suc n} (suc i) ⟪ σ , x ⟫ = get i σ
-
-  stack-substG : Stack n → GType n → GType n
-  stack-substT : Stack n → Type n → Type n
-  stack-substS : Stack n → SType n → SType n
 
   toℕx≤n : {n : ℕ} {x : Fin n} → Data.Nat._≤_ (toℕ x) n
   toℕx≤n {suc n} {0F} = z≤n
@@ -280,12 +276,16 @@ module IND where
   n∸x+x≡n {0F} {suc x} ()
   n∸x+x≡n {suc n} {0F} le = refl
   n∸x+x≡n {suc n} {suc x} (s≤s le) = cong suc (n∸x+x≡n le)
+
+  stack-substG : Stack n → GType n → GType n
+  stack-substT : Stack n → Type n → Type n
+  stack-substS : Stack n → SType n → SType n
   
   stack-substS σ (gdd gst) = gdd (stack-substG σ gst)
   stack-substS σ (rec gst) = rec (stack-substG ⟪ σ , (var 0F) ⟫ gst)
   stack-substS{n} σ (var x)
-    with get x σ
-  ... | xt rewrite (n∸x+x≡n{n}{toℕ x} toℕx≤n) = {!weakenS{n ∸ toℕ x} (toℕ x) xt!} -- Agda does not want to rewrite
+    with get x σ | weakenS{n ∸ toℕ x} (toℕ x)
+  ... | σ' , xt | w rewrite (n∸x+x≡n{n}{toℕ x} toℕx≤n) = w xt
 
   stack-substG σ (transmit d t s) = transmit d (stack-substT σ t) (stack-substS σ s)
   stack-substG σ (choice d m alt) = choice d m (λ x → stack-substS σ (alt x))
@@ -297,25 +297,24 @@ module IND where
   stack-substT σ (TChan x) = TChan (stack-substS σ x)
 
   ----------------------------------------------------------------------
+  
+  dualS : (σ : Stack n) → SType n → SType n
+  dualG : (σ : Stack n) → GType n → GType n
+  dualT : (σ : Stack n) → Type n → Type n
 
-  dualS' : (σ : Stack n) → SType n → SType n
-  dualG' : (σ : Stack n) → GType n → GType n
-  dualT' : (σ : Stack n) → Type n → Type n
+  dualS σ (gdd gst) = gdd (dualG σ gst)
+  dualS σ (rec gst) = rec (dualG ⟪ σ , (weaken1S (rec gst)) ⟫ gst)
+  dualS σ (var x)   = (var x)
 
-  dualS' σ (gdd gst) = gdd (dualG' σ gst)
-  dualS' σ (rec gst) = rec (dualG' ⟪ σ , (weaken1S (rec gst)) ⟫ gst)
-  dualS' σ (var x)   = (var x)
+  dualG σ (transmit d t s) = transmit (dual-dir d) (dualT σ t) (dualS σ s)
+  dualG σ (choice d m alt) = choice (dual-dir d) m ((dualS σ) ∘ alt)
+  dualG σ end = end
 
-  dualG' σ (transmit d t s) = transmit (dual-dir d) (dualT' σ t) (dualS' σ s)
-  dualG' σ (choice d m alt) = choice (dual-dir d) m ((dualS' σ) ∘ alt)
-  dualG' σ end = end
+  dualT σ TUnit = TUnit
+  dualT σ TInt = TInt
+  dualT σ (TPair t t₁) = TPair (dualT σ t) (dualT σ t₁)
+  dualT σ (TChan x) = TChan (stack-substS σ x)
 
-  dualT' σ TUnit = TUnit
-  dualT' σ TInt = TInt
-  dualT' σ (TPair t t₁) = TPair (dualT' σ t) (dualT' σ t₁)
-  dualT' σ (TChan x) = TChan (stack-substS σ x)
-
-{-
   ----------------------------------------------------------------------
 
   module CheckDual where
@@ -327,7 +326,7 @@ module IND where
     DS : SType 0
     DS = rec (transmit RCV (weaken1T (TChan S)) (var 0F))
 
-    _ : DS ≡ dualS S
+    _ : DS ≡ dualS ε S
     _ = refl
 
     -- S' = μx.!x.!x.x
@@ -338,7 +337,7 @@ module IND where
     DS' : SType 0
     DS' =  rec (transmit RCV (weaken1T (TChan S')) (gdd ((transmit RCV (weaken1T (TChan S')) (var 0F)))))
 
-    _ : DS' ≡ dualS S'
+    _ : DS' ≡ dualS ε S'
     _ = refl
 
     -- S'' = μx.!x.(μy.!y.y)
@@ -348,7 +347,7 @@ module IND where
     -- D(S'') = μx.?(μx.!x.(μy.!y.y)).(μy.?(μy.!y.y).y)
     DS'' = rec (transmit RCV (weaken1T (TChan S'')) (weaken1S DS))
 
-    _ : DS'' ≡ dualS S''
+    _ : DS'' ≡ dualS ε S''
     _ = refl
 
   ----------------------------------------------------------------------
@@ -376,23 +375,29 @@ SType.force (ind2coiS (rec gst)) = ind2coiG (st-substG gst zero (rec gst))
 
 ----------------------------------------------------------------------
 
-dual-compatible-trivialT : (t : IND.Type n) → dualT' (λ x → x) t ≡ t
-dual-compatible-trivialT TUnit = refl
-dual-compatible-trivialT TInt = refl
-dual-compatible-trivialT (TPair t t₁) = cong₂ (TPair) (dual-compatible-trivialT t) (dual-compatible-trivialT t₁)
-dual-compatible-trivialT (TChan x) = refl
+stack-subst-trivial : (x : IND.SType 0) →
+  stack-substS ε x ≡ x
+stack-subst-trivial (gdd gst) = cong gdd {!!}
+stack-subst-trivial (rec gst) = cong rec {!!}
+
+dual-trivial-t : (t : IND.Type 0) →
+  dualT ε t ≡ t
+dual-trivial-t TUnit = refl
+dual-trivial-t TInt = refl
+dual-trivial-t (TPair t t₁) = cong₂ TPair (dual-trivial-t t) (dual-trivial-t t₁)
+dual-trivial-t (TChan x) = cong TChan {!!}
 
 ----------------------------------------------------------------------
 
 dual-compatibleS : (ist : IND.SType 0) →
-  COI.dual (ind2coiS ist) ≈ ind2coiS (IND.dualS ist)
+  COI.dual (ind2coiS ist) ≈ ind2coiS (IND.dualS ε ist)
 dual-compatibleG : (gst : IND.GType 0) →
-  COI.dualF (ind2coiG gst) ≈' ind2coiG (IND.dualG gst)
+  COI.dualF (ind2coiG gst) ≈' ind2coiG (IND.dualG ε gst)
 
 Equiv.force (dual-compatibleS (gdd gst)) = dual-compatibleG gst
 Equiv.force (dual-compatibleS (rec gst)) = {!!}
 
-dual-compatibleG (transmit d t s) rewrite (dual-compatible-trivialT t) = eq-transmit (dual-dir d) ≈ᵗ-refl (dual-compatibleS s)
+dual-compatibleG (transmit d t s) = eq-transmit (dual-dir d) {!!} (dual-compatibleS s)
 dual-compatibleG (choice d m alt) = eq-choice (dual-dir d) (dual-compatibleS ∘ alt)
 dual-compatibleG end = eq-end
--}
+
