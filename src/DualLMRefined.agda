@@ -70,23 +70,20 @@ module IND where
       choice : (d : Dir) (m : ℕ) (alt : Fin m → SType n) → GType n
       end : GType n
 
-  mutual
-    data TailType (n : ℕ) : Set where
-      TailTUnit TailTInt : TailType n
-      TailTPair : TailType n → TailType n → TailType n
-      TailTChan : SType 0F → TailType n
+    data MClType (n : ℕ) : Set where
+      MClTUnit MClTInt : MClType n
+      MClTPair : MClType n → MClType n → MClType n
+      MClTChan : SType 0F → MClType n
 
-    data TailSType (n : ℕ) : Set where
-      tgdd : (tgst : TailGType n) → TailSType n
-      trec : (tgst : TailGType (suc n)) → TailSType n
-      tvar : (x : Fin n) → TailSType n
+    data MClSType (n : ℕ) : Set where
+      tgdd : (tgst : MClGType n) → MClSType n
+      trec : (tgst : MClGType (suc n)) → MClSType n
+      tvar : (x : Fin n) → MClSType n
 
-    data TailGType (n : ℕ) : Set where
-      ttransmit : (d : Dir) (t : TailType n) (s : TailSType n) → TailGType n
-      tchoice : (d : Dir) (m : ℕ) (alt : Fin m → TailSType n) → TailGType n
-      end : TailGType n
-
-  TType = Type
+    data MClGType (n : ℕ) : Set where
+      ttransmit : (d : Dir) (t : MClType n) (s : MClSType n) → MClGType n
+      tchoice : (d : Dir) (m : ℕ) (alt : Fin m → MClSType n) → MClGType n
+      end : MClGType n
 
   ----------------------------------------------------------------------
 
@@ -222,9 +219,9 @@ data StackS0 : ℕ → Set where
   ε : StackS0 0
   ⟪_,_⟫ : StackS0 n → IND.SType 0F → StackS0 (suc n)
 
-data StackTail : ℕ → Set where
-  ε : StackTail 0
-  ⟪_,_⟫ : StackTail n → IND.TailGType (suc n) → StackTail (suc n)
+data StackMCl : ℕ → Set where
+  ε : StackMCl 0
+  ⟪_,_⟫ : StackMCl n → IND.MClGType (suc n) → StackMCl (suc n)
 
 get : {n : ℕ} → (i : Fin n) → Stack n → Stack (n ∸ (suc (toℕ i))) × IND.GType (n ∸ (toℕ i))
 get {suc n} 0F ⟪ σ , x ⟫ = σ , x
@@ -238,9 +235,9 @@ getS0 : {n : ℕ} → (i : Fin n) → StackS0 n → StackS0 (n ∸ (suc (toℕ i
 getS0 {suc n} 0F ⟪ σ , x ⟫ = σ , x
 getS0 {suc n} (suc i) ⟪ σ , x ⟫ = getS0 i σ
 
-getTail : {n : ℕ} → (i : Fin n) → StackTail n → StackTail (n ∸ (suc (toℕ i))) × IND.TailGType (n ∸ (toℕ i))
-getTail {suc n} 0F ⟪ σ , x ⟫ = σ , x
-getTail {suc n} (suc i) ⟪ σ , x ⟫ = getTail i σ
+getMCl : {n : ℕ} → (i : Fin n) → StackMCl n → StackMCl (n ∸ (suc (toℕ i))) × IND.MClGType (n ∸ (toℕ i))
+getMCl {suc n} 0F ⟪ σ , x ⟫ = σ , x
+getMCl {suc n} (suc i) ⟪ σ , x ⟫ = getMCl i σ
 
 ----------------------------------------------------------------------
 
@@ -300,9 +297,9 @@ stack-transform ⟪ σ , x ⟫
 ----------------------------------------------------------------------
 
 -- Message closure
-mclS : (σ : StackS n) → SType n → TailSType n
-mclG : (σ : StackS n) → GType n → TailGType n
-mclT : (σ : StackS n) → Type n → TailType n
+mclS : (σ : StackS n) → SType n → MClSType n
+mclG : (σ : StackS n) → GType n → MClGType n
+mclT : (σ : StackS n) → Type n → MClType n
 
 mclS σ (gdd gst) = tgdd (mclG σ gst)
 mclS σ (rec gst) = trec (mclG ⟪ σ , (rec gst) ⟫ gst)
@@ -312,30 +309,30 @@ mclG σ (transmit d t s) = ttransmit d (mclT σ t) (mclS σ s)
 mclG σ (choice d m alt) = tchoice d m (λ x → mclS σ (alt x))
 mclG σ end = end
 
-mclT σ TUnit = TailTUnit
-mclT σ TInt = TailTInt
-mclT σ (TPair t t₁) = TailTPair (mclT σ t) (mclT σ t₁)
-mclT σ (TChan x) = TailTChan (stack-sim-substS (stack-transform σ) x)
+mclT σ TUnit = MClTUnit
+mclT σ TInt = MClTInt
+mclT σ (TPair t t₁) = MClTPair (mclT σ t) (mclT σ t₁)
+mclT σ (TChan x) = MClTChan (stack-sim-substS (stack-transform σ) x)
 
 ----------------------------------------------------------------------
 
 -- Any tail type is a normal type with weakening
-tail2noTailS : TailSType n → SType n
-tail2noTailG : TailGType n → GType n
-tail2noTailT : TailType n → Type n
+mcl2indS : MClSType n → SType n
+mcl2indG : MClGType n → GType n
+mcl2indT : MClType n → Type n
 
-tail2noTailS (tgdd tgst) = gdd (tail2noTailG tgst)
-tail2noTailS (trec tgst) = rec (tail2noTailG tgst)
-tail2noTailS (tvar x) = var x
+mcl2indS (tgdd tgst) = gdd (mcl2indG tgst)
+mcl2indS (trec tgst) = rec (mcl2indG tgst)
+mcl2indS (tvar x) = var x
 
-tail2noTailG (ttransmit d t s) = transmit d (tail2noTailT t) (tail2noTailS s)
-tail2noTailG (tchoice d m alt) = choice d m (λ x → tail2noTailS (alt x))
-tail2noTailG end = end
+mcl2indG (ttransmit d t s) = transmit d (mcl2indT t) (mcl2indS s)
+mcl2indG (tchoice d m alt) = choice d m (λ x → mcl2indS (alt x))
+mcl2indG end = end
 
-tail2noTailT TailTUnit = TUnit
-tail2noTailT TailTInt = TInt
-tail2noTailT (TailTPair t t₁) = TPair (tail2noTailT t) (tail2noTailT t₁)
-tail2noTailT{n} (TailTChan x) = TChan (weakenS n x)
+mcl2indT MClTUnit = TUnit
+mcl2indT MClTInt = TInt
+mcl2indT (MClTPair t t₁) = TPair (mcl2indT t) (mcl2indT t₁)
+mcl2indT{n} (MClTChan x) = TChan (weakenS n x)
 
 ----------------------------------------------------------------------
 
@@ -343,23 +340,23 @@ stack2StackS : Stack n → StackS n
 stack2StackS ε = ε
 stack2StackS ⟪ σ , x ⟫ = ⟪ (stack2StackS σ) , (rec x) ⟫
 
-stackTail2Stack : StackTail n → Stack n
-stackTail2Stack ε = ε
-stackTail2Stack ⟪ σ , x ⟫ = ⟪ (stackTail2Stack σ) , (tail2noTailG x) ⟫
+stackMCl2Stack : StackMCl n → Stack n
+stackMCl2Stack ε = ε
+stackMCl2Stack ⟪ σ , x ⟫ = ⟪ (stackMCl2Stack σ) , (mcl2indG x) ⟫
 
-stackTail2StackS : StackTail n → StackS n
-stackTail2StackS ε = ε
-stackTail2StackS ⟪ σ , x ⟫ = ⟪ (stackTail2StackS σ) , (rec (tail2noTailG x)) ⟫
+stackMCl2StackS : StackMCl n → StackS n
+stackMCl2StackS ε = ε
+stackMCl2StackS ⟪ σ , x ⟫ = ⟪ (stackMCl2StackS σ) , (rec (mcl2indG x)) ⟫
 
-stack2StackTail : Stack n → StackTail n
-stack2StackTail ε = ε
-stack2StackTail ⟪ σ , x ⟫ = ⟪ (stack2StackTail σ) , (mclG ⟪ stack2StackS σ , rec x ⟫ x) ⟫
+stack2StackMCl : Stack n → StackMCl n
+stack2StackMCl ε = ε
+stack2StackMCl ⟪ σ , x ⟫ = ⟪ (stack2StackMCl σ) , (mclG ⟪ stack2StackS σ , rec x ⟫ x) ⟫
 
 ----------------------------------------------------------------------
 
--- proj₂ (getTail x (stack2StackTail σ)) ≡ mclG (stack2StackS σ) (get x σ)
+-- proj₂ (getTail x (stack2StackMCl σ)) ≡ mclG (stack2StackS σ) (get x σ)
 getTail-get : (x : Fin n) (σ : Stack n)
-  → getTail x (stack2StackTail σ) ≡ map stack2StackTail (mclG {!stack2StackS ⟪ (proj₁ (get x σ)) , (proj₂ (get x σ)) ⟫!}) (get x σ) 
+  → getMCl x (stack2StackMCl σ) ≡ map stack2StackMCl (mclG {!stack2StackS ⟪ (proj₁ (get x σ)) , (proj₂ (get x σ)) ⟫!}) (get x σ) 
 
 ----------------------------------------------------------------------
 
@@ -380,9 +377,9 @@ naive-dualT TInt = TInt
 naive-dualT (TPair t t₁) = TPair (naive-dualT t) (naive-dualT t₁)
 naive-dualT (TChan x) = TChan (naive-dualS x)
 
-naive-dualSt : TailSType n → TailSType n
-naive-dualGt : TailGType n → TailGType n
-naive-dualTt : TailType n → TailType n
+naive-dualSt : MClSType n → MClSType n
+naive-dualGt : MClGType n → MClGType n
+naive-dualTt : MClType n → MClType n
 
 naive-dualSt (tgdd tgst) = tgdd (naive-dualGt tgst)
 naive-dualSt (trec tgst) = trec (naive-dualGt tgst)
@@ -392,16 +389,16 @@ naive-dualGt (ttransmit d t s) = ttransmit (dual-dir d) (naive-dualTt t) (naive-
 naive-dualGt (tchoice d m alt) = tchoice (dual-dir d) m (λ x → naive-dualSt (alt x))
 naive-dualGt end = end
 
-naive-dualTt TailTUnit = TailTUnit
-naive-dualTt TailTInt = TailTInt
-naive-dualTt (TailTPair t t₁) = TailTPair (naive-dualTt t) (naive-dualTt t₁)
-naive-dualTt (TailTChan x) = TailTChan (naive-dualS x)
+naive-dualTt MClTUnit = MClTUnit
+naive-dualTt MClTInt = MClTInt
+naive-dualTt (MClTPair t t₁) = MClTPair (naive-dualTt t) (naive-dualTt t₁)
+naive-dualTt (MClTChan x) = MClTChan (naive-dualS x)
 
 ----------------------------------------------------------------------
 
-dualS : (σ : StackS n) → SType n → TailSType n
-dualG : (σ : StackS n) → GType n → TailGType n
-dualT : (σ : StackS n) → Type n → TailType n
+dualS : (σ : StackS n) → SType n → MClSType n
+dualG : (σ : StackS n) → GType n → MClGType n
+dualT : (σ : StackS n) → Type n → MClType n
 
 dualS σ (gdd gst) = tgdd (dualG σ gst)
 dualS σ (rec gst) = trec (dualG ⟪ σ , (rec gst) ⟫ gst)
@@ -411,10 +408,10 @@ dualG{n} σ (transmit d t s) = ttransmit (dual-dir d) (dualT σ t) (dualS σ s)
 dualG σ (choice d m alt) = tchoice (dual-dir d) m ((dualS σ) ∘ alt)
 dualG σ end = end
 
-dualT σ TUnit = TailTUnit
-dualT σ TInt = TailTInt
-dualT σ (TPair t t₁) = TailTPair (dualT σ t) (dualT σ t₁)
-dualT σ (TChan x) = TailTChan (stack-sim-substS (stack-transform σ) x)
+dualT σ TUnit = MClTUnit
+dualT σ TInt = MClTInt
+dualT σ (TPair t t₁) = MClTPair (dualT σ t) (dualT σ t₁)
+dualT σ (TChan x) = MClTChan (stack-sim-substS (stack-transform σ) x)
 
 module sanity-check where
   -- μx.!x.x → μx.?(μx.!x.x).x
@@ -445,7 +442,7 @@ module sanity-check where
 
 open import DualCoinductive hiding (n)
 
--- Nontail to Coinductive
+-- IND to Coinductive
 ind2coiS : Stack n → IND.SType n → COI.SType
 ind2coiG : Stack n → IND.GType n → COI.STypeF COI.SType
 ind2coiT : Stack n → IND.Type n → COI.Type
@@ -465,25 +462,25 @@ ind2coiG σ (transmit d t s) = COI.transmit d (ind2coiT σ t) (ind2coiS σ s)
 ind2coiG σ (choice d m alt) = COI.choice d m (λ x → ind2coiS σ (alt x))
 ind2coiG σ end = COI.end
 
--- Tail to Coinductive
-tail2coiT : StackTail n → TailType n → COI.Type
-tail2coiS : StackTail n → TailSType n → COI.SType
-tail2coiG : StackTail n → TailGType n → COI.STypeF COI.SType
+-- Message closure to Coinductive
+mcl2coiT : StackMCl n → MClType n → COI.Type
+mcl2coiS : StackMCl n → MClSType n → COI.SType
+mcl2coiG : StackMCl n → MClGType n → COI.STypeF COI.SType
 
-tail2coiT σ TailTUnit = COI.TUnit
-tail2coiT σ TailTInt = COI.TInt
-tail2coiT σ (TailTPair t t₁) = COI.TPair (tail2coiT σ t) (tail2coiT σ t₁)
-tail2coiT σ (TailTChan s) = COI.TChan (ind2coiS ε s)
+mcl2coiT σ MClTUnit = COI.TUnit
+mcl2coiT σ MClTInt = COI.TInt
+mcl2coiT σ (MClTPair t t₁) = COI.TPair (mcl2coiT σ t) (mcl2coiT σ t₁)
+mcl2coiT σ (MClTChan s) = COI.TChan (ind2coiS ε s)
 
-COI.SType.force (tail2coiS σ (tgdd g)) = tail2coiG σ g
-COI.SType.force (tail2coiS σ (trec g)) = tail2coiG ⟪ σ , g ⟫ g
-COI.SType.force (tail2coiS{n} σ (tvar x))
-  with getTail x σ
-... | σ' , gxs rewrite (n∸x≡suc[n∸sucx]{n}{toℕ x} toℕx<n) = tail2coiG ⟪ σ' , gxs ⟫ gxs 
+COI.SType.force (mcl2coiS σ (tgdd g)) = mcl2coiG σ g
+COI.SType.force (mcl2coiS σ (trec g)) = mcl2coiG ⟪ σ , g ⟫ g
+COI.SType.force (mcl2coiS{n} σ (tvar x))
+  with getMCl x σ
+... | σ' , gxs rewrite (n∸x≡suc[n∸sucx]{n}{toℕ x} toℕx<n) = mcl2coiG ⟪ σ' , gxs ⟫ gxs 
 
-tail2coiG σ (ttransmit d t s) = COI.transmit d (tail2coiT σ t) (tail2coiS σ s)
-tail2coiG σ (tchoice d m alt) = COI.choice d m (tail2coiS σ ∘ alt)
-tail2coiG σ end = COI.end
+mcl2coiG σ (ttransmit d t s) = COI.transmit d (mcl2coiT σ t) (mcl2coiS σ s)
+mcl2coiG σ (tchoice d m alt) = COI.choice d m (mcl2coiS σ ∘ alt)
+mcl2coiG σ end = COI.end
 
 
 _≈_ = COI._≈_
@@ -501,6 +498,8 @@ stack-unfoldT : (σ : Stack n) (t : IND.Type n) →
 COI.Equiv.force (stack-unfoldS σ (gdd gst)) = stack-unfoldG σ gst
 COI.Equiv.force (stack-unfoldS σ (rec gst)) = {!stack-unfoldG ⟪ σ , gst ⟫ gst!}
 COI.Equiv.force (stack-unfoldS σ (var x)) = {!!}
+--  with getS0 x (stack-transform (stack2StackS σ)) | get x σ
+-- ... | σ' , s0 | σ'' , s = {!!}
 
 stack-unfoldG σ (transmit d t s) = COI.eq-transmit d (stack-unfoldT σ t) (stack-unfoldS σ s)
 stack-unfoldG σ (choice d m alt) = COI.eq-choice d (λ i → stack-unfoldS σ (alt i))
@@ -513,15 +512,15 @@ stack-unfoldT σ (TChan x) = COI.eq-chan (stack-unfoldS σ x)
 
 
 mcl-equiv-S : (σ : Stack n) (s : IND.SType n) →
-  tail2coiS (stack2StackTail σ) (mclS (stack2StackS σ) s) ≈ ind2coiS σ s
+  mcl2coiS (stack2StackMCl σ) (mclS (stack2StackS σ) s) ≈ ind2coiS σ s
 mcl-equiv-G : (σ : Stack n) (g : IND.GType n) →
-  tail2coiG (stack2StackTail σ) (mclG (stack2StackS σ) g) ≈' ind2coiG σ g
+  mcl2coiG (stack2StackMCl σ) (mclG (stack2StackS σ) g) ≈' ind2coiG σ g
 mcl-equiv-T : (σ : Stack n) (t : IND.Type n) →
-  tail2coiT (stack2StackTail σ) (mclT (stack2StackS σ) t) ≈ᵗ ind2coiT σ t
+  mcl2coiT (stack2StackMCl σ) (mclT (stack2StackS σ) t) ≈ᵗ ind2coiT σ t
 
 COI.Equiv.force (mcl-equiv-S σ (gdd gst)) = mcl-equiv-G σ gst
 COI.Equiv.force (mcl-equiv-S σ (rec gst)) = mcl-equiv-G ⟪ σ , gst ⟫ gst
-COI.Equiv.force (mcl-equiv-S σ (var x)) = {!mcl-equiv-G!}
+COI.Equiv.force (mcl-equiv-S σ (var x)) = {!!}
 
 mcl-equiv-G σ (transmit d t s) = COI.eq-transmit d (mcl-equiv-T σ t) (mcl-equiv-S σ s)
 mcl-equiv-G σ (choice d m alt) = COI.eq-choice d (λ i → mcl-equiv-S σ (alt i))
@@ -534,5 +533,5 @@ mcl-equiv-T σ (TChan x) = COI.eq-chan (stack-unfoldS σ x)
 
 
 
--- naive-mcl-dual : (σ : StackTail n) (s : IND.SType n) →
---  tail2coiS σ (naive-dualSt (mclS (stackTail2StackS σ) s)) ≈ tail2coiS σ (dualS (stackTail2StackS σ) s)
+-- naive-mcl-dual : (σ : StackMCl n) (s : IND.SType n) →
+--  mcl2coiS σ (naive-dualSt (mclS (stackTail2StackS σ) s)) ≈ mcl2coiS σ (dualS (stackTail2StackS σ) s)
