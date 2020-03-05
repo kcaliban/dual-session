@@ -339,6 +339,10 @@ tail2noTailT{n} (TailTChan x) = TChan (weakenS n x)
 
 ----------------------------------------------------------------------
 
+stack2StackS : Stack n → StackS n
+stack2StackS ε = ε
+stack2StackS ⟪ σ , x ⟫ = ⟪ (stack2StackS σ) , (rec x) ⟫
+
 stackTail2Stack : StackTail n → Stack n
 stackTail2Stack ε = ε
 stackTail2Stack ⟪ σ , x ⟫ = ⟪ (stackTail2Stack σ) , (tail2noTailG x) ⟫
@@ -346,6 +350,10 @@ stackTail2Stack ⟪ σ , x ⟫ = ⟪ (stackTail2Stack σ) , (tail2noTailG x) ⟫
 stackTail2StackS : StackTail n → StackS n
 stackTail2StackS ε = ε
 stackTail2StackS ⟪ σ , x ⟫ = ⟪ (stackTail2StackS σ) , (rec (tail2noTailG x)) ⟫
+
+stack2StackTail : Stack n → StackTail n
+stack2StackTail ε = ε
+stack2StackTail ⟪ σ , x ⟫ = ⟪ (stack2StackTail σ) , (mclG ⟪ stack2StackS σ , rec x ⟫ x) ⟫
 
 ----------------------------------------------------------------------
 
@@ -474,16 +482,29 @@ tail2coiG σ end = COI.end
 
 _≈_ = COI._≈_
 _≈'_ = COI._≈'_
+_≈ᵗ_ = COI._≈ᵗ_
 
-mcl-equiv-S : (σ : StackTail n) (s : IND.SType n) →
-  tail2coiS σ (mclS (stackTail2StackS σ) s) ≈ ind2coiS (stackTail2Stack σ) s
-mcl-equiv-G : (σ : StackTail n) (g : IND.GType n) →
-  tail2coiG σ (mclG (stackTail2StackS σ) g) ≈' ind2coiG (stackTail2Stack σ) g
+mcl-equiv-S : (σ : Stack n) (s : IND.SType n) →
+  tail2coiS (stack2StackTail σ) (mclS (stack2StackS σ) s) ≈ ind2coiS σ s
+mcl-equiv-G : (σ : Stack n) (g : IND.GType n) →
+  tail2coiG (stack2StackTail σ) (mclG (stack2StackS σ) g) ≈' ind2coiG σ g
+mcl-equiv-T : (σ : Stack n) (t : IND.Type n) →
+  tail2coiT (stack2StackTail σ) (mclT (stack2StackS σ) t) ≈ᵗ ind2coiT σ t
 
 COI.Equiv.force (mcl-equiv-S σ (gdd gst)) = mcl-equiv-G σ gst
-COI.Equiv.force (mcl-equiv-S σ (rec gst)) = {!mcl-equiv-G ⟪ σ , (mclG ⟪ stackTail2StackS σ , rec gst ⟫ gst) ⟫!} -- problematic case?
-COI.Equiv.force (mcl-equiv-S σ (var x)) = {!!}   -- tail2noTail (getTail x σ) ≡ get x (stackTail2Stack σ)
+COI.Equiv.force (mcl-equiv-S σ (rec gst)) = mcl-equiv-G ⟪ σ , gst ⟫ gst
+COI.Equiv.force (mcl-equiv-S σ (var x)) = {!!}  
+
+mcl-equiv-G σ (transmit d t s) = COI.eq-transmit d (mcl-equiv-T σ t) (mcl-equiv-S σ s)
+mcl-equiv-G σ (choice d m alt) = COI.eq-choice d (λ i → mcl-equiv-S σ (alt i))
+mcl-equiv-G σ end = COI.eq-end
+
+mcl-equiv-T σ TUnit = COI.eq-unit
+mcl-equiv-T σ TInt = COI.eq-int
+mcl-equiv-T σ (TPair t t₁) = COI.eq-pair (mcl-equiv-T σ t) (mcl-equiv-T σ t₁)
+mcl-equiv-T σ (TChan x) = COI.eq-chan {!!}
 
 
-naive-mcl-dual : (σ : StackTail n) (s : IND.SType n) →
-  tail2coiS σ (naive-dualSt (mclS (stackTail2StackS σ) s)) ≈ tail2coiS σ (dualS (stackTail2StackS σ) s)
+
+-- naive-mcl-dual : (σ : StackTail n) (s : IND.SType n) →
+--  tail2coiS σ (naive-dualSt (mclS (stackTail2StackS σ) s)) ≈ tail2coiS σ (dualS (stackTail2StackS σ) s)
