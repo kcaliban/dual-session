@@ -357,6 +357,12 @@ stack2StackTail ⟪ σ , x ⟫ = ⟪ (stack2StackTail σ) , (mclG ⟪ stack2Stac
 
 ----------------------------------------------------------------------
 
+-- proj₂ (getTail x (stack2StackTail σ)) ≡ mclG (stack2StackS σ) (get x σ)
+getTail-get : (x : Fin n) (σ : Stack n)
+  → getTail x (stack2StackTail σ) ≡ map stack2StackTail (mclG {!stack2StackS ⟪ (proj₁ (get x σ)) , (proj₂ (get x σ)) ⟫!}) (get x σ) 
+
+----------------------------------------------------------------------
+
 naive-dualS : SType n → SType n
 naive-dualG : GType n → GType n
 naive-dualT : Type n → Type n
@@ -484,6 +490,28 @@ _≈_ = COI._≈_
 _≈'_ = COI._≈'_
 _≈ᵗ_ = COI._≈ᵗ_
 
+
+stack-unfoldS : (σ : Stack n) (s : IND.SType n) →
+  ind2coiS ε (stack-sim-substS (stack-transform (stack2StackS σ)) s) ≈ ind2coiS σ s
+stack-unfoldG : (σ : Stack n) (g : IND.GType n) →
+  ind2coiG ε (stack-sim-substG (stack-transform (stack2StackS σ)) g) ≈' ind2coiG σ g
+stack-unfoldT : (σ : Stack n) (t : IND.Type n) →
+  ind2coiT ε (stack-sim-substT (stack-transform (stack2StackS σ)) t) ≈ᵗ ind2coiT σ t
+
+COI.Equiv.force (stack-unfoldS σ (gdd gst)) = stack-unfoldG σ gst
+COI.Equiv.force (stack-unfoldS σ (rec gst)) = {!stack-unfoldG ⟪ σ , gst ⟫ gst!}
+COI.Equiv.force (stack-unfoldS σ (var x)) = {!!}
+
+stack-unfoldG σ (transmit d t s) = COI.eq-transmit d (stack-unfoldT σ t) (stack-unfoldS σ s)
+stack-unfoldG σ (choice d m alt) = COI.eq-choice d (λ i → stack-unfoldS σ (alt i))
+stack-unfoldG σ end = COI.eq-end
+
+stack-unfoldT σ TUnit = COI.eq-unit
+stack-unfoldT σ TInt = COI.eq-int
+stack-unfoldT σ (TPair t t₁) = COI.eq-pair (stack-unfoldT σ t) (stack-unfoldT σ t₁)
+stack-unfoldT σ (TChan x) = COI.eq-chan (stack-unfoldS σ x)
+
+
 mcl-equiv-S : (σ : Stack n) (s : IND.SType n) →
   tail2coiS (stack2StackTail σ) (mclS (stack2StackS σ) s) ≈ ind2coiS σ s
 mcl-equiv-G : (σ : Stack n) (g : IND.GType n) →
@@ -493,7 +521,7 @@ mcl-equiv-T : (σ : Stack n) (t : IND.Type n) →
 
 COI.Equiv.force (mcl-equiv-S σ (gdd gst)) = mcl-equiv-G σ gst
 COI.Equiv.force (mcl-equiv-S σ (rec gst)) = mcl-equiv-G ⟪ σ , gst ⟫ gst
-COI.Equiv.force (mcl-equiv-S σ (var x)) = {!!}  
+COI.Equiv.force (mcl-equiv-S σ (var x)) = {!mcl-equiv-G!}
 
 mcl-equiv-G σ (transmit d t s) = COI.eq-transmit d (mcl-equiv-T σ t) (mcl-equiv-S σ s)
 mcl-equiv-G σ (choice d m alt) = COI.eq-choice d (λ i → mcl-equiv-S σ (alt i))
@@ -502,7 +530,7 @@ mcl-equiv-G σ end = COI.eq-end
 mcl-equiv-T σ TUnit = COI.eq-unit
 mcl-equiv-T σ TInt = COI.eq-int
 mcl-equiv-T σ (TPair t t₁) = COI.eq-pair (mcl-equiv-T σ t) (mcl-equiv-T σ t₁)
-mcl-equiv-T σ (TChan x) = COI.eq-chan {!!}
+mcl-equiv-T σ (TChan x) = COI.eq-chan (stack-unfoldS σ x)
 
 
 
