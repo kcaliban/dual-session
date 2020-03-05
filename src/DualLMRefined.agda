@@ -459,7 +459,7 @@ tail2coiG : StackTail n → TailGType n → COI.STypeF COI.SType
 tail2coiT σ TailTUnit = COI.TUnit
 tail2coiT σ TailTInt = COI.TInt
 tail2coiT σ (TailTPair t t₁) = COI.TPair (tail2coiT σ t) (tail2coiT σ t₁)
-tail2coiT σ (TailTChan s) = COI.TChan (tail2coiS ε (mclS ε s))
+tail2coiT σ (TailTChan s) = COI.TChan (ind2coiS ε s)
 
 COI.SType.force (tail2coiS σ (tgdd g)) = tail2coiG σ g
 COI.SType.force (tail2coiS σ (trec g)) = tail2coiG ⟪ σ , g ⟫ g
