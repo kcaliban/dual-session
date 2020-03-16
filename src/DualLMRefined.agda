@@ -50,6 +50,17 @@ n=fromℕtoℕn {suc n} = cong suc (n=fromℕtoℕn {n})
 
 {-# REWRITE n=fromℕtoℕn #-}
 
+sucn∸suctoℕx≡n∸toℕx : {n : ℕ} {x : Fin n} → suc (n ∸ suc (toℕ x)) ≡ n ∸ (toℕ x)
+sucn∸suctoℕx≡n∸toℕx {suc n} {0F} = refl
+sucn∸suctoℕx≡n∸toℕx {suc n} {suc x} = sucn∸suctoℕx≡n∸toℕx{n}{x}
+
+sucn' : {n : ℕ} {x : Fin n} → n ∸ (toℕ x) ≡ suc (n ∸ suc (toℕ x))
+sucn' {n} {x} = sym (sucn∸suctoℕx≡n∸toℕx{n}{x})
+
+
+-- {-# REWRITE sucn∸suctoℕx≡n∸toℕx #-}
+{-# REWRITE sucn' #-}
+
 ----------------------------------------------------------------------
 
 module IND where
@@ -203,6 +214,22 @@ module IND where
   n∸x≡suc[n∸sucx] {suc n} {0F} le = refl
   n∸x≡suc[n∸sucx] {suc n} {suc x} (s≤s le) = n∸x≡suc[n∸sucx] le
 
+  suc[n+x]≡n+sucx : {n x : ℕ} → suc (n + x) ≡ (n + suc x)
+  suc[n+x]≡n+sucx {0F} {x} = refl
+  suc[n+x]≡n+sucx {suc n} {x} = refl
+
+  suc[n∸sucx+x]≡n : {n x : ℕ} → Data.Nat._<_ x n → suc (n ∸ (suc x) + x) ≡ n
+  suc[n∸sucx+x]≡n {suc n} {0F} le = refl
+  suc[n∸sucx+x]≡n {suc n} {suc x} (s≤s le) = cong suc (suc[n∸sucx+x]≡n {n} {x} le)
+
+  -- Why failure to solve constraints?
+  xyz : {n x : ℕ} → Data.Nat._<_ x n → suc (suc (n ∸ (suc x) + x)) ≡ suc n
+  xyz {n} {x} le = cong suc (suc[n∸sucx+x]≡n {n} {x} le)
+
+  <suc : {n x : ℕ} → Data.Nat._<_ x n → Data.Nat._<_ x (suc n)
+  <suc {suc n} {0F} le = s≤s z≤n
+  <suc {suc n} {suc x} (s≤s le) = s≤s (<suc {n} {x} le)
+
 ----------------------------------------------------------------------
 
 open IND
@@ -223,6 +250,12 @@ data StackMCl : ℕ → Set where
   ε : StackMCl 0
   ⟪_,_⟫ : StackMCl n → IND.MClGType (suc n) → StackMCl (suc n)
 
+-- Stack of length m starting at arbitrary type size n
+data Stack' : ℕ → ℕ → Set where
+  ε : Stack' n 0
+  ⟪_,_⟫ : Stack' n m → IND.GType (suc (n + m)) → Stack' n (suc m)
+
+
 get : {n : ℕ} → (i : Fin n) → Stack n → Stack (n ∸ (suc (toℕ i))) × IND.GType (n ∸ (toℕ i))
 get {suc n} 0F ⟪ σ , x ⟫ = σ , x
 get {suc n} (suc i) ⟪ σ , x ⟫ = get i σ
@@ -241,28 +274,44 @@ getMCl {suc n} (suc i) ⟪ σ , x ⟫ = getMCl i σ
 
 ----------------------------------------------------------------------
 
--- substitute after index i, required for rec case
-stack-sim-substS-i : (i : Fin n) → StackS0 (n ∸ (toℕ (suc i))) → SType n → SType (toℕ (suc i))
-stack-sim-substG-i : (i : Fin n) → StackS0 (n ∸ (toℕ (suc i))) → GType n → GType (toℕ (suc i))
-stack-sim-substT-i : (i : Fin n) → StackS0 (n ∸ (toℕ (suc i))) → Type n → Type (toℕ (suc i))
+{-
+stack-split : (i : Fin n) → Stack n → Stack (n ∸ toℕ (suc i)) × Stack' (n ∸ (toℕ (suc i))) (toℕ (suc i))
+stack-split 0F ⟪ σ , x ⟫ = σ , ⟪ ε , x ⟫
+stack-split{n} (suc i) ⟪ σ , x ⟫
+  with stack-split i σ
+... | σ' , σ'' rewrite (suc[n∸sucx+x]≡n{n}{toℕ i} (<suc toℕx<n)) = σ' , ⟪ σ'' , {!x!} ⟫
+-}
 
-stack-sim-substS-i i σ (gdd gst) = gdd (stack-sim-substG-i i σ gst)
-stack-sim-substS-i i σ (rec gst) = rec (stack-sim-substG-i (suc i) σ gst)
-stack-sim-substS-i{suc n} 0F σ (var 0F) = var 0F
-stack-sim-substS-i 0F σ (var (suc x))
+-- substitute after index i, required for rec case
+stack-sim-substS-i> : (i : Fin n) → StackS0 (n ∸ (toℕ (suc i))) → SType n → SType (toℕ (suc i))
+stack-sim-substG-i> : (i : Fin n) → StackS0 (n ∸ (toℕ (suc i))) → GType n → GType (toℕ (suc i))
+stack-sim-substT-i> : (i : Fin n) → StackS0 (n ∸ (toℕ (suc i))) → Type n → Type (toℕ (suc i))
+
+stack-sim-substS-i> i σ (gdd gst) = gdd (stack-sim-substG-i> i σ gst)
+stack-sim-substS-i> i σ (rec gst) = rec (stack-sim-substG-i> (suc i) σ gst)
+stack-sim-substS-i>{suc n} 0F σ (var 0F) = var 0F
+stack-sim-substS-i> 0F σ (var (suc x))
   with getS0 x σ 
 ... | σ' , s = weaken1S s
-stack-sim-substS-i (suc i) σ (var 0F) = var 0F
-stack-sim-substS-i (suc i) σ (var (suc x)) = weaken1S (stack-sim-substS-i i σ (var x))
+stack-sim-substS-i> (suc i) σ (var 0F) = var 0F
+stack-sim-substS-i> (suc i) σ (var (suc x)) = weaken1S (stack-sim-substS-i> i σ (var x))
 
-stack-sim-substG-i i σ (transmit d t s) = transmit d (stack-sim-substT-i i σ t) (stack-sim-substS-i i σ s)
-stack-sim-substG-i i σ (choice d m alt) = choice d m (λ x → stack-sim-substS-i i σ (alt x))
-stack-sim-substG-i i σ end = end
+stack-sim-substG-i> i σ (transmit d t s) = transmit d (stack-sim-substT-i> i σ t) (stack-sim-substS-i> i σ s)
+stack-sim-substG-i> i σ (choice d m alt) = choice d m (λ x → stack-sim-substS-i> i σ (alt x))
+stack-sim-substG-i> i σ end = end
 
-stack-sim-substT-i i σ TUnit = TUnit
-stack-sim-substT-i i σ TInt = TInt
-stack-sim-substT-i i σ (TPair t t₁) = TPair (stack-sim-substT-i i σ t) (stack-sim-substT-i i σ t₁)
-stack-sim-substT-i i σ (TChan x) = TChan (stack-sim-substS-i i σ x)
+stack-sim-substT-i> i σ TUnit = TUnit
+stack-sim-substT-i> i σ TInt = TInt
+stack-sim-substT-i> i σ (TPair t t₁) = TPair (stack-sim-substT-i> i σ t) (stack-sim-substT-i> i σ t₁)
+stack-sim-substT-i> i σ (TChan x) = TChan (stack-sim-substS-i> i σ x)
+
+-- substitute before and for index i, required for stack-unfold lemma
+-- stack-sim-substS-i≤ : (i : Fin (suc n)) → Stack (toℕ (suc i)) → GType (suc n) → SType (n ∸ (toℕ i))
+-- stack-sim-substS-i≤ i σ (gdd gst) = {!!}
+-- stack-sim-substS-i≤ i σ (rec gst) = {!!}
+-- stack-sim-substS-i≤ {n} 0F σ (var 0F) = {!!}
+-- stack-sim-substS-i≤ {n} 0F σ (var (suc x)) = {!!}
+-- stack-sim-substS-i≤ {n} (suc i) σ (var x) = {!!}
 
 -- substitute stack
 stack-sim-substS : StackS0 n → SType n → SType 0F
@@ -270,7 +319,7 @@ stack-sim-substG : StackS0 n → GType n → GType 0F
 stack-sim-substT : StackS0 n → Type n → Type 0F
 
 stack-sim-substS σ (gdd gst) = gdd (stack-sim-substG σ gst)
-stack-sim-substS σ (rec gst) = rec (stack-sim-substG-i 0F σ gst) -- Apply stack substitution to variables 1, ..., suc n; keep 0F; can't extend StackS0 since only SType 0F allowed
+stack-sim-substS σ (rec gst) = rec (stack-sim-substG-i> 0F σ gst) -- Apply stack substitution to variables 1, ..., suc n; keep 0F; can't extend StackS0 since only SType 0F allowed
 stack-sim-substS σ (var x)
   with getS0 x σ
 ... | σ' , s = s
@@ -316,7 +365,7 @@ mclT σ (TChan x) = MClTChan (stack-sim-substS (stack-transform σ) x)
 
 ----------------------------------------------------------------------
 
--- Any tail type is a normal type with weakening
+-- Any mcl type is a normal type with weakening
 mcl2indS : MClSType n → SType n
 mcl2indG : MClGType n → GType n
 mcl2indT : MClType n → Type n
@@ -352,11 +401,9 @@ stack2StackMCl : Stack n → StackMCl n
 stack2StackMCl ε = ε
 stack2StackMCl ⟪ σ , x ⟫ = ⟪ (stack2StackMCl σ) , (mclG ⟪ stack2StackS σ , rec x ⟫ x) ⟫
 
-----------------------------------------------------------------------
-
--- proj₂ (getTail x (stack2StackMCl σ)) ≡ mclG (stack2StackS σ) (get x σ)
-getTail-get : (x : Fin n) (σ : Stack n)
-  → getMCl x (stack2StackMCl σ) ≡ map stack2StackMCl (mclG {!stack2StackS ⟪ (proj₁ (get x σ)) , (proj₂ (get x σ)) ⟫!}) (get x σ) 
+stack2Stack' : Stack n → Stack' 0 n
+stack2Stack' ε = ε
+stack2Stack' ⟪ σ , x ⟫ = ⟪ stack2Stack' σ , x ⟫
 
 ----------------------------------------------------------------------
 
@@ -482,6 +529,7 @@ mcl2coiG σ (ttransmit d t s) = COI.transmit d (mcl2coiT σ t) (mcl2coiS σ s)
 mcl2coiG σ (tchoice d m alt) = COI.choice d m (mcl2coiS σ ∘ alt)
 mcl2coiG σ end = COI.end
 
+----------------------------------------------------------------------
 
 _≈_ = COI._≈_
 _≈'_ = COI._≈'_
@@ -490,17 +538,19 @@ _≈ᵗ_ = COI._≈ᵗ_
 
 stack-unfoldS : (σ : Stack n) (s : IND.SType n) →
   ind2coiS ε (stack-sim-substS (stack-transform (stack2StackS σ)) s) ≈ ind2coiS σ s
+{-
 stack-unfoldG : (σ : Stack n) (g : IND.GType n) →
   ind2coiG ε (stack-sim-substG (stack-transform (stack2StackS σ)) g) ≈' ind2coiG σ g
 stack-unfoldT : (σ : Stack n) (t : IND.Type n) →
   ind2coiT ε (stack-sim-substT (stack-transform (stack2StackS σ)) t) ≈ᵗ ind2coiT σ t
+-}
 
-COI.Equiv.force (stack-unfoldS σ (gdd gst)) = stack-unfoldG σ gst
-COI.Equiv.force (stack-unfoldS σ (rec gst)) = {!stack-unfoldG ⟪ σ , gst ⟫ gst!}
+COI.Equiv.force (stack-unfoldS σ (gdd gst)) = {!!} -- stack-unfoldG σ gst
+COI.Equiv.force (stack-unfoldS σ (rec gst)) = {!!}
 COI.Equiv.force (stack-unfoldS σ (var x)) = {!!}
---  with getS0 x (stack-transform (stack2StackS σ)) | get x σ
--- ... | σ' , s0 | σ'' , s = {!!}
 
+
+{-
 stack-unfoldG σ (transmit d t s) = COI.eq-transmit d (stack-unfoldT σ t) (stack-unfoldS σ s)
 stack-unfoldG σ (choice d m alt) = COI.eq-choice d (λ i → stack-unfoldS σ (alt i))
 stack-unfoldG σ end = COI.eq-end
@@ -509,7 +559,36 @@ stack-unfoldT σ TUnit = COI.eq-unit
 stack-unfoldT σ TInt = COI.eq-int
 stack-unfoldT σ (TPair t t₁) = COI.eq-pair (stack-unfoldT σ t) (stack-unfoldT σ t₁)
 stack-unfoldT σ (TChan x) = COI.eq-chan (stack-unfoldS σ x)
+-}
 
+----------------------------------------------------------------------
+
+-- proof idea for var case:
+--
+-- mcl2coiS (stack2StackMCl σ) (tvar x)
+-------- getMCl x (stack2StackMCl σ) = σ' , g
+-- => mcl2coiG ⟪ σ' , g ⟫ g
+-------- getMCl x (stack2StackMCl σ) = (stack2StackMCl (get x σ).1 , mclG ⟪ stack2StackS (get x σ).1 , rec (get x σ).2 ⟫ (get x σ).2
+-- => mcl2coiG ⟪ (stack2StackMCl (get x σ).1 , mclG ⟪ stack2StackS (get x σ).1 , rec (get x σ).2 ⟫ (get x σ).2 ⟫ (mclG ⟪ stack2StackS (get x σ).1 , rec (get x σ).2 ⟫ (get x σ).2)
+------- which by definition of stack2StackMCl and stack2StackS is equivalent to
+-- = mcl2coiG (stack2StackMCl ⟪ (get x σ).1 , (get x σ).2 ⟫) (mclG (stack2StackS ⟪ (get x σ).1 , (get x σ).2 ⟫) g)
+------- which, if indmcl2coiG holds, is equivalent to
+-- ≈' ind2coiG ⟪ (get x σ).1 , (get x σ).2 ⟫ (get x σ).2
+-- = ind2coiG σ (var x)
+
+-- problem for indmcl2coiS and rec case (?)
+indmcl2coiG : (σ : Stack n) (g : IND.GType (suc n))
+  → ind2coiG ⟪ σ , g ⟫ g ≈' mcl2coiG (stack2StackMCl ⟪ σ , g ⟫) (mclG (stack2StackS ⟪ σ , g ⟫) g)
+indmcl2coiG σ (transmit d t s) = COI.eq-transmit d {!!} {!!}
+indmcl2coiG σ (choice d m alt) = {!!}
+indmcl2coiG σ end = COI.eq-end
+
+getMCl-get : (x : Fin n) (σ : Stack n)
+  → getMCl x (stack2StackMCl σ) ≡ (stack2StackMCl (proj₁ (get x σ)) , mclG ⟪ stack2StackS (proj₁ (get x σ)) , rec (proj₂ (get x σ)) ⟫  (proj₂ (get x σ)))
+getMCl-get 0F ⟪ σ , x ⟫ = refl
+getMCl-get (suc x) ⟪ σ , x₁ ⟫ = getMCl-get x σ
+
+----------------------------------------------------------------------
 
 mcl-equiv-S : (σ : Stack n) (s : IND.SType n) →
   mcl2coiS (stack2StackMCl σ) (mclS (stack2StackS σ) s) ≈ ind2coiS σ s
@@ -518,9 +597,12 @@ mcl-equiv-G : (σ : Stack n) (g : IND.GType n) →
 mcl-equiv-T : (σ : Stack n) (t : IND.Type n) →
   mcl2coiT (stack2StackMCl σ) (mclT (stack2StackS σ) t) ≈ᵗ ind2coiT σ t
 
+
 COI.Equiv.force (mcl-equiv-S σ (gdd gst)) = mcl-equiv-G σ gst
 COI.Equiv.force (mcl-equiv-S σ (rec gst)) = mcl-equiv-G ⟪ σ , gst ⟫ gst
-COI.Equiv.force (mcl-equiv-S σ (var x)) = {!!}
+COI.Equiv.force (mcl-equiv-S σ (var x)) = {!!} -- rewrite getMCl-get x σ = {!!}
+--  with get x σ
+-- ... | σ' , g = {!!} 
 
 mcl-equiv-G σ (transmit d t s) = COI.eq-transmit d (mcl-equiv-T σ t) (mcl-equiv-S σ s)
 mcl-equiv-G σ (choice d m alt) = COI.eq-choice d (λ i → mcl-equiv-S σ (alt i))
