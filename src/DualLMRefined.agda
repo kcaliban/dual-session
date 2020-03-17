@@ -564,7 +564,6 @@ stack-unfoldT σ (TChan x) = COI.eq-chan (stack-unfoldS σ x)
 ----------------------------------------------------------------------
 
 -- proof idea for var case:
---
 -- mcl2coiS (stack2StackMCl σ) (tvar x)
 -------- getMCl x (stack2StackMCl σ) = σ' , g
 -- => mcl2coiG ⟪ σ' , g ⟫ g
@@ -572,16 +571,9 @@ stack-unfoldT σ (TChan x) = COI.eq-chan (stack-unfoldS σ x)
 -- => mcl2coiG ⟪ (stack2StackMCl (get x σ).1 , mclG ⟪ stack2StackS (get x σ).1 , rec (get x σ).2 ⟫ (get x σ).2 ⟫ (mclG ⟪ stack2StackS (get x σ).1 , rec (get x σ).2 ⟫ (get x σ).2)
 ------- which by definition of stack2StackMCl and stack2StackS is equivalent to
 -- = mcl2coiG (stack2StackMCl ⟪ (get x σ).1 , (get x σ).2 ⟫) (mclG (stack2StackS ⟪ (get x σ).1 , (get x σ).2 ⟫) g)
-------- which, if indmcl2coiG holds, is equivalent to
+------- which, by mcl-equiv-G
 -- ≈' ind2coiG ⟪ (get x σ).1 , (get x σ).2 ⟫ (get x σ).2
 -- = ind2coiG σ (var x)
-
--- problem for indmcl2coiS and rec case (?)
-indmcl2coiG : (σ : Stack n) (g : IND.GType (suc n))
-  → ind2coiG ⟪ σ , g ⟫ g ≈' mcl2coiG (stack2StackMCl ⟪ σ , g ⟫) (mclG (stack2StackS ⟪ σ , g ⟫) g)
-indmcl2coiG σ (transmit d t s) = COI.eq-transmit d {!!} {!!}
-indmcl2coiG σ (choice d m alt) = {!!}
-indmcl2coiG σ end = COI.eq-end
 
 getMCl-get : (x : Fin n) (σ : Stack n)
   → getMCl x (stack2StackMCl σ) ≡ (stack2StackMCl (proj₁ (get x σ)) , mclG ⟪ stack2StackS (proj₁ (get x σ)) , rec (proj₂ (get x σ)) ⟫  (proj₂ (get x σ)))
@@ -600,9 +592,10 @@ mcl-equiv-T : (σ : Stack n) (t : IND.Type n) →
 
 COI.Equiv.force (mcl-equiv-S σ (gdd gst)) = mcl-equiv-G σ gst
 COI.Equiv.force (mcl-equiv-S σ (rec gst)) = mcl-equiv-G ⟪ σ , gst ⟫ gst
-COI.Equiv.force (mcl-equiv-S σ (var x)) = {!!} -- rewrite getMCl-get x σ = {!!}
---  with get x σ
--- ... | σ' , g = {!!} 
+COI.Equiv.force (mcl-equiv-S{n} σ (var x))
+  rewrite (getMCl-get x σ)
+  with (proj₁ (get x σ)) | (proj₂ (get x σ))
+... | σ' | g  rewrite (n∸x≡suc[n∸sucx]{n}{toℕ x} toℕx<n) = mcl-equiv-G ⟪ σ' , g ⟫ g
 
 mcl-equiv-G σ (transmit d t s) = COI.eq-transmit d (mcl-equiv-T σ t) (mcl-equiv-S σ s)
 mcl-equiv-G σ (choice d m alt) = COI.eq-choice d (λ i → mcl-equiv-S σ (alt i))
