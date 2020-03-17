@@ -255,6 +255,14 @@ data Stack' : ℕ → ℕ → Set where
   ε : Stack' n 0
   ⟪_,_⟫ : Stack' n m → IND.GType (suc (n + m)) → Stack' n (suc m)
 
+data Stack'S : ℕ → ℕ → Set where
+  ε : Stack'S n 0
+  ⟪_,_⟫ : Stack'S n m → IND.SType (n + m) → Stack'S n (suc m)
+
+data Stack'Sn : ℕ → ℕ → Set where
+  ε : Stack'Sn n 0
+  ⟪_,_⟫ : Stack'Sn n m → IND.SType n → Stack'Sn n (suc m)
+
 
 get : {n : ℕ} → (i : Fin n) → Stack n → Stack (n ∸ (suc (toℕ i))) × IND.GType (n ∸ (toℕ i))
 get {suc n} 0F ⟪ σ , x ⟫ = σ , x
@@ -271,6 +279,8 @@ getS0 {suc n} (suc i) ⟪ σ , x ⟫ = getS0 i σ
 getMCl : {n : ℕ} → (i : Fin n) → StackMCl n → StackMCl (n ∸ (suc (toℕ i))) × IND.MClGType (n ∸ (toℕ i))
 getMCl {suc n} 0F ⟪ σ , x ⟫ = σ , x
 getMCl {suc n} (suc i) ⟪ σ , x ⟫ = getMCl i σ
+
+-- getS'n : (i : Fin (n + m)) → Stack'Sn n m → Stack'Sn (n ∸ (suc (toℕ i))) × IND.SType (n ∸ (toℕ i))
 
 ----------------------------------------------------------------------
 
@@ -333,6 +343,24 @@ stack-sim-substT σ TInt = TInt
 stack-sim-substT σ (TPair t t₁) = TPair (stack-sim-substT σ t) (stack-sim-substT σ t₁)
 stack-sim-substT σ (TChan x) = TChan (stack-sim-substS σ x)
 
+-- substitute stack'
+stack-sim-substS' : Stack'Sn n m → SType (n + m) → SType n
+stack-sim-substG' : Stack'Sn n m → GType (n + m) → GType n
+stack-sim-substT' : Stack'Sn n m → Type (n + m) → Type n
+
+stack-sim-substS' σ (gdd gst) = gdd (stack-sim-substG' σ gst)
+stack-sim-substS' σ (rec gst) = rec {!!}
+stack-sim-substS' σ (var x) = {!!}
+
+stack-sim-substG' σ (transmit d t s) = transmit d (stack-sim-substT' σ t) (stack-sim-substS' σ s)
+stack-sim-substG' σ (choice d m alt) = choice d m (λ x → stack-sim-substS' σ (alt x))
+stack-sim-substG' σ end = end
+
+stack-sim-substT' σ TUnit = TUnit
+stack-sim-substT' σ TInt = TInt
+stack-sim-substT' σ (TPair t t₁) = TPair (stack-sim-substT' σ t) (stack-sim-substT' σ t₁)
+stack-sim-substT' σ (TChan x) = TChan (stack-sim-substS' σ x)
+
 -- Transform Stack of STypes to Stack of closed STypes by substitution 
 -- ⟪ ε , SType 0 , SType 1               , SType 2                                            , ⋯ ⟫
 -- ⟪ ε , SType 0 , SType 1 [0F ↦ SType 0], SType 2 [0F ↦ SType 0, 1F ↦ SType 1 [0F ↦ SType 0]], ⋯ ⟫
@@ -342,6 +370,16 @@ stack-transform ε = ε
 stack-transform ⟪ σ , x ⟫
   with stack-transform σ
 ... | σ' = ⟪ σ' , (stack-sim-substS σ' x) ⟫
+
+stack-transform' : Stack'S n m → Stack'Sn n m
+stack-transform' ε = ε
+stack-transform' ⟪ σ , x ⟫
+  with stack-transform' σ
+... | σ' = ⟪ σ' , stack-sim-substS' σ' x ⟫
+
+stack-cat : Stack n → Stack' n m → Stack (n + m)
+stack-cat σ ε = σ
+stack-cat σ ⟪ σ' , x ⟫ = ⟪ (stack-cat σ σ') , x ⟫
 
 ----------------------------------------------------------------------
 
@@ -404,6 +442,10 @@ stack2StackMCl ⟪ σ , x ⟫ = ⟪ (stack2StackMCl σ) , (mclG ⟪ stack2StackS
 stack2Stack' : Stack n → Stack' 0 n
 stack2Stack' ε = ε
 stack2Stack' ⟪ σ , x ⟫ = ⟪ stack2Stack' σ , x ⟫
+
+stack'2Stack'S : Stack' n m → Stack'S n m
+stack'2Stack'S ε = ε
+stack'2Stack'S ⟪ σ , x ⟫ = ⟪ (stack'2Stack'S σ) , (rec x) ⟫
 
 ----------------------------------------------------------------------
 
@@ -487,7 +529,7 @@ module sanity-check where
 
 ----------------------------------------------------------------------
 
-open import DualCoinductive hiding (n)
+open import DualCoinductive hiding (n ; m)
 
 -- IND to Coinductive
 ind2coiS : Stack n → IND.SType n → COI.SType
@@ -535,31 +577,22 @@ _≈_ = COI._≈_
 _≈'_ = COI._≈'_
 _≈ᵗ_ = COI._≈ᵗ_
 
+stack-unfoldS' : (σ : Stack n) (σ' : Stack' n m) (s : IND.SType (n + m)) →
+  ind2coiS σ (stack-sim-substS' (stack-transform' (stack'2Stack'S σ')) s) ≈ ind2coiS (stack-cat σ σ') s
+stack-unfoldG' : (σ : Stack n) (σ' : Stack' n m) (g : IND.GType (n + m)) →
+  ind2coiG σ (stack-sim-substG' (stack-transform' (stack'2Stack'S σ')) g) ≈' ind2coiG (stack-cat σ σ') g
+
+COI.Equiv.force (stack-unfoldS' σ σ' (gdd gst)) = {!!}
+COI.Equiv.force (stack-unfoldS' σ σ' (rec gst)) = {!!} 
+COI.Equiv.force (stack-unfoldS' σ σ' (var x)) = {!!}
+
 
 stack-unfoldS : (σ : Stack n) (s : IND.SType n) →
   ind2coiS ε (stack-sim-substS (stack-transform (stack2StackS σ)) s) ≈ ind2coiS σ s
-{-
-stack-unfoldG : (σ : Stack n) (g : IND.GType n) →
-  ind2coiG ε (stack-sim-substG (stack-transform (stack2StackS σ)) g) ≈' ind2coiG σ g
-stack-unfoldT : (σ : Stack n) (t : IND.Type n) →
-  ind2coiT ε (stack-sim-substT (stack-transform (stack2StackS σ)) t) ≈ᵗ ind2coiT σ t
--}
 
-COI.Equiv.force (stack-unfoldS σ (gdd gst)) = {!!} -- stack-unfoldG σ gst
+COI.Equiv.force (stack-unfoldS σ (gdd gst)) = {!!}
 COI.Equiv.force (stack-unfoldS σ (rec gst)) = {!!}
 COI.Equiv.force (stack-unfoldS σ (var x)) = {!!}
-
-
-{-
-stack-unfoldG σ (transmit d t s) = COI.eq-transmit d (stack-unfoldT σ t) (stack-unfoldS σ s)
-stack-unfoldG σ (choice d m alt) = COI.eq-choice d (λ i → stack-unfoldS σ (alt i))
-stack-unfoldG σ end = COI.eq-end
-
-stack-unfoldT σ TUnit = COI.eq-unit
-stack-unfoldT σ TInt = COI.eq-int
-stack-unfoldT σ (TPair t t₁) = COI.eq-pair (stack-unfoldT σ t) (stack-unfoldT σ t₁)
-stack-unfoldT σ (TChan x) = COI.eq-chan (stack-unfoldS σ x)
--}
 
 ----------------------------------------------------------------------
 
