@@ -612,6 +612,8 @@ ind2coiT' : (i : Fin n) → Stack (n ∸ toℕ i) → Stack' (n ∸ toℕ i) (to
 
 COI.SType.force (ind2coiS' i σ σ' (gdd gst)) = ind2coiG' i σ σ' gst
 COI.SType.force (ind2coiS'{n} i σ σ' (rec gst)) = ind2coiG' (suc i) σ ⟪ σ' , {!gst!} ⟫ gst
+-- Problematic line:
+-- COI.SType.force (ind2coiS'{n} i σ σ' (rec gst)) rewrite (sym (suc[n∸suc[toℕi]+toℕi]≡n{n}{i})) = ?
 COI.SType.force (ind2coiS' i σ σ' (var x)) = {!!}
  
 -- IND to Coinductive
