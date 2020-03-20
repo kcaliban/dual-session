@@ -8,6 +8,7 @@ open import Data.Fin hiding (_+_)
 open import Data.Product
 open import Function
 open import Relation.Binary.PropositionalEquality hiding (Extensionality)
+open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite
 open import Extensionality
 open import Direction
@@ -54,12 +55,55 @@ sucn∸suctoℕx≡n∸toℕx : {n : ℕ} {x : Fin n} → suc (n ∸ suc (toℕ 
 sucn∸suctoℕx≡n∸toℕx {suc n} {0F} = refl
 sucn∸suctoℕx≡n∸toℕx {suc n} {suc x} = sucn∸suctoℕx≡n∸toℕx{n}{x}
 
-sucn' : {n : ℕ} {x : Fin n} → n ∸ (toℕ x) ≡ suc (n ∸ suc (toℕ x))
-sucn' {n} {x} = sym (sucn∸suctoℕx≡n∸toℕx{n}{x})
+sym-sucn∸suctoℕx≡n∸toℕx : {n : ℕ} {x : Fin n} → n ∸ (toℕ x) ≡ suc (n ∸ suc (toℕ x))
+sym-sucn∸suctoℕx≡n∸toℕx {n} {x} = sym (sucn∸suctoℕx≡n∸toℕx{n}{x})
 
+{-# REWRITE sym-sucn∸suctoℕx≡n∸toℕx #-}
 
--- {-# REWRITE sucn∸suctoℕx≡n∸toℕx #-}
-{-# REWRITE sucn' #-}
+{-# REWRITE m+n∸n≡m #-}
+
+----------------------------------------------------------------------
+-- some more required properties on natural numbers and fin
+
+toℕx≤n : {n : ℕ} {x : Fin n} → Data.Nat._≤_ (toℕ x) n
+toℕx≤n {suc n} {0F} = z≤n
+toℕx≤n {suc n} {suc x} = s≤s toℕx≤n
+
+toℕx≤n' : {n : ℕ} {x : Fin (suc n)} → Data.Nat._≤_ (toℕ x) n
+toℕx≤n' {0F} {0F} = z≤n
+toℕx≤n' {suc n} {0F} = z≤n
+toℕx≤n' {suc n} {suc x} = s≤s (toℕx≤n'{n}{x})
+
+n∸x+x≡n : {n x : ℕ} → Data.Nat._≤_ x n  → n ∸ x + x ≡ n
+n∸x+x≡n {0F} {0F} le = refl
+n∸x+x≡n {0F} {suc x} ()
+n∸x+x≡n {suc n} {0F} le = refl
+n∸x+x≡n {suc n} {suc x} (s≤s le) = cong suc (n∸x+x≡n le)
+
+toℕx<n : {n : ℕ} {x : Fin n} → Data.Nat._<_ (toℕ x) n
+toℕx<n {suc n} {0F} = s≤s z≤n
+toℕx<n {suc n} {suc x} = s≤s toℕx<n
+
+n∸x≡suc[n∸sucx] : {n x : ℕ} → Data.Nat._<_ x n → n ∸ x ≡ suc (n ∸ (suc x))
+n∸x≡suc[n∸sucx] {suc n} {0F} le = refl
+n∸x≡suc[n∸sucx] {suc n} {suc x} (s≤s le) = n∸x≡suc[n∸sucx] le
+
+suc[n+x]≡n+sucx : {n x : ℕ} → suc (n + x) ≡ (n + suc x)
+suc[n+x]≡n+sucx {0F} {x} = refl
+suc[n+x]≡n+sucx {suc n} {x} = refl
+
+suc[n∸sucx+x]≡n : {n x : ℕ} → Data.Nat._<_ x n → suc (n ∸ (suc x) + x) ≡ n
+suc[n∸sucx+x]≡n {suc n} {0F} le = refl
+suc[n∸sucx+x]≡n {suc n} {suc x} (s≤s le) = cong suc (suc[n∸sucx+x]≡n {n} {x} le)
+
+suc[n∸suc[toℕi]+toℕi]≡n : {n : ℕ} {i : Fin n} → suc (n ∸ (suc (toℕ i)) + toℕ i) ≡ n
+suc[n∸suc[toℕi]+toℕi]≡n {n} {i} = suc[n∸sucx+x]≡n{n}{toℕ i} toℕx<n
+
+{-# REWRITE suc[n∸suc[toℕi]+toℕi]≡n #-}
+
+<suc : {n x : ℕ} → Data.Nat._<_ x n → Data.Nat._<_ x (suc n)
+<suc {suc n} {0F} le = s≤s z≤n
+<suc {suc n} {suc x} (s≤s le) = s≤s (<suc {n} {x} le)
 
 ----------------------------------------------------------------------
 
@@ -196,39 +240,6 @@ module IND where
   ----------------------------------------------------------------------
   ----------------------------------------------------------------------
 
-  toℕx≤n : {n : ℕ} {x : Fin n} → Data.Nat._≤_ (toℕ x) n
-  toℕx≤n {suc n} {0F} = z≤n
-  toℕx≤n {suc n} {suc x} = s≤s toℕx≤n
-  
-  n∸x+x≡n : {n x : ℕ} → Data.Nat._≤_ x n  → n ∸ x + x ≡ n
-  n∸x+x≡n {0F} {0F} le = refl
-  n∸x+x≡n {0F} {suc x} ()
-  n∸x+x≡n {suc n} {0F} le = refl
-  n∸x+x≡n {suc n} {suc x} (s≤s le) = cong suc (n∸x+x≡n le)
-
-  toℕx<n : {n : ℕ} {x : Fin n} → Data.Nat._<_ (toℕ x) n
-  toℕx<n {suc n} {0F} = s≤s z≤n
-  toℕx<n {suc n} {suc x} = s≤s toℕx<n
-  
-  n∸x≡suc[n∸sucx] : {n x : ℕ} → Data.Nat._<_ x n → n ∸ x ≡ suc (n ∸ (suc x))
-  n∸x≡suc[n∸sucx] {suc n} {0F} le = refl
-  n∸x≡suc[n∸sucx] {suc n} {suc x} (s≤s le) = n∸x≡suc[n∸sucx] le
-
-  suc[n+x]≡n+sucx : {n x : ℕ} → suc (n + x) ≡ (n + suc x)
-  suc[n+x]≡n+sucx {0F} {x} = refl
-  suc[n+x]≡n+sucx {suc n} {x} = refl
-
-  suc[n∸sucx+x]≡n : {n x : ℕ} → Data.Nat._<_ x n → suc (n ∸ (suc x) + x) ≡ n
-  suc[n∸sucx+x]≡n {suc n} {0F} le = refl
-  suc[n∸sucx+x]≡n {suc n} {suc x} (s≤s le) = cong suc (suc[n∸sucx+x]≡n {n} {x} le)
-
-  -- Why failure to solve constraints?
-  xyz : {n x : ℕ} → Data.Nat._<_ x n → suc (suc (n ∸ (suc x) + x)) ≡ suc n
-  xyz {n} {x} le = cong suc (suc[n∸sucx+x]≡n {n} {x} le)
-
-  <suc : {n x : ℕ} → Data.Nat._<_ x n → Data.Nat._<_ x (suc n)
-  <suc {suc n} {0F} le = s≤s z≤n
-  <suc {suc n} {suc x} (s≤s le) = s≤s (<suc {n} {x} le)
 
 ----------------------------------------------------------------------
 
@@ -280,17 +291,45 @@ getMCl : {n : ℕ} → (i : Fin n) → StackMCl n → StackMCl (n ∸ (suc (to�
 getMCl {suc n} 0F ⟪ σ , x ⟫ = σ , x
 getMCl {suc n} (suc i) ⟪ σ , x ⟫ = getMCl i σ
 
--- getS'n : (i : Fin (n + m)) → Stack'Sn n m → Stack'Sn (n ∸ (suc (toℕ i))) × IND.SType (n ∸ (toℕ i))
+get' : {n m : ℕ} → (i : Fin m) → Stack' n m → Stack' n (m ∸ (suc (toℕ i))) × IND.GType (n + (m ∸ (toℕ i)))
+get' {n} {suc m} 0F ⟪ σ , x ⟫ = σ , x
+get' {n} {suc m} (suc i) ⟪ σ , x ⟫ = get' i σ
+
+get'S : {n m : ℕ} → (i : Fin m) → Stack'S n m → Stack'S n (m ∸ (suc (toℕ i))) × IND.SType (n + (m ∸ (suc (toℕ i))))
+get'S {n} {suc m} 0F ⟪ σ , x ⟫ = σ , x
+get'S {n} {suc m} (suc i) ⟪ σ , x ⟫ = get'S i σ
+
+get'Sn : {n m : ℕ} → (i : Fin m) → Stack'Sn n m → Stack'Sn n (m ∸ (suc (toℕ i))) × IND.SType n
+get'Sn {n} {suc m} 0F ⟪ σ , x ⟫ = σ , x
+get'Sn {n} {suc m} (suc i) ⟪ σ , x ⟫ = get'Sn i σ
 
 ----------------------------------------------------------------------
 
-{-
-stack-split : (i : Fin n) → Stack n → Stack (n ∸ toℕ (suc i)) × Stack' (n ∸ (toℕ (suc i))) (toℕ (suc i))
-stack-split 0F ⟪ σ , x ⟫ = σ , ⟪ ε , x ⟫
+
+stack-split : (i : Fin n) → Stack n → Stack (n ∸ toℕ i) × Stack' (n ∸ toℕ i) (toℕ i)
+stack-split 0F σ = σ , ε
 stack-split{n} (suc i) ⟪ σ , x ⟫
   with stack-split i σ
-... | σ' , σ'' rewrite (suc[n∸sucx+x]≡n{n}{toℕ i} (<suc toℕx<n)) = σ' , ⟪ σ'' , {!x!} ⟫
--}
+... | σ' , σ'' rewrite (sym (suc[n∸sucx+x]≡n{n}{toℕ i} (<suc toℕx<n))) = σ' , ⟪ σ'' , x ⟫
+
+-- couldn't achieve this by rewriting alone
+suc[n+[m∸sucx]+x]≡n+m : {n m x : ℕ} → Data.Nat._<_ x m → suc (n + (m ∸ suc x) + x) ≡ n + m
+suc[n+[m∸sucx]+x]≡n+m {0F} {m} {x} le = suc[n∸sucx+x]≡n{m}{x} le
+suc[n+[m∸sucx]+x]≡n+m {suc n} {suc m} {0F} le = refl
+suc[n+[m∸sucx]+x]≡n+m {suc n} {suc m} {suc x} (s≤s le) = cong suc (cong suc (suc[n+[m∸sucx]+x]≡n+m le))
+
+-- i from the top of the stack
+stack'-m-i : {n m : ℕ} → (i : Fin m) → Stack' n m → Stack' (n + (m ∸ (toℕ i))) (toℕ i)
+stack'-m-i {n} {m} 0F σ = ε
+stack'-m-i {n} {suc m} (suc i) ⟪ σ , x ⟫ rewrite (sym (suc[n+[m∸sucx]+x]≡n+m{n}{m}{toℕ i} toℕx<n)) = ⟪ (stack'-m-i i σ) , x ⟫
+
+weaken1-Stack' : (i : Fin (suc n)) → Stack' n m → Stack' (suc n) m
+weaken1-Stack' i ε = ε
+weaken1-Stack'{n}{m} i ⟪ σ , x ⟫ = ⟪ (weaken1-Stack' i σ) , (weaken1'G (inject+ m i) x) ⟫
+
+weaken1-Stack'Sn : (i : Fin (suc n)) → Stack'Sn n m → Stack'Sn (suc n) m
+weaken1-Stack'Sn i ε = ε
+weaken1-Stack'Sn{n}{m} i ⟪ σ , x ⟫ = ⟪ (weaken1-Stack'Sn i σ) , (weaken1'S i x) ⟫
 
 -- substitute after index i, required for rec case
 stack-sim-substS-i> : (i : Fin n) → StackS0 (n ∸ (toℕ (suc i))) → SType n → SType (toℕ (suc i))
@@ -315,13 +354,6 @@ stack-sim-substT-i> i σ TInt = TInt
 stack-sim-substT-i> i σ (TPair t t₁) = TPair (stack-sim-substT-i> i σ t) (stack-sim-substT-i> i σ t₁)
 stack-sim-substT-i> i σ (TChan x) = TChan (stack-sim-substS-i> i σ x)
 
--- substitute before and for index i, required for stack-unfold lemma
--- stack-sim-substS-i≤ : (i : Fin (suc n)) → Stack (toℕ (suc i)) → GType (suc n) → SType (n ∸ (toℕ i))
--- stack-sim-substS-i≤ i σ (gdd gst) = {!!}
--- stack-sim-substS-i≤ i σ (rec gst) = {!!}
--- stack-sim-substS-i≤ {n} 0F σ (var 0F) = {!!}
--- stack-sim-substS-i≤ {n} 0F σ (var (suc x)) = {!!}
--- stack-sim-substS-i≤ {n} (suc i) σ (var x) = {!!}
 
 -- substitute stack
 stack-sim-substS : StackS0 n → SType n → SType 0F
@@ -343,14 +375,33 @@ stack-sim-substT σ TInt = TInt
 stack-sim-substT σ (TPair t t₁) = TPair (stack-sim-substT σ t) (stack-sim-substT σ t₁)
 stack-sim-substT σ (TChan x) = TChan (stack-sim-substS σ x)
 
+
+stack-sim-substS'-i≥ : (i : Fin (suc m)) → Stack'Sn n (m ∸ toℕ i) → SType m → SType (n + toℕ i)
+stack-sim-substG'-i≥ : (i : Fin (suc m)) → Stack'Sn n (m ∸ toℕ i) → GType m → GType (n + toℕ i)
+stack-sim-substT'-i≥ : (i : Fin (suc m)) → Stack'Sn n (m ∸ toℕ i) → Type m → Type (n + toℕ i)
+
+stack-sim-substS'-i≥ i σ (gdd gst) = gdd (stack-sim-substG'-i≥ i σ gst)
+stack-sim-substS'-i≥ i σ (rec gst) = rec (stack-sim-substG'-i≥ (suc i) σ gst)
+stack-sim-substS'-i≥ 0F σ (var x)
+  with get'Sn x σ
+... | σ' , y = y
+stack-sim-substS'-i≥ (suc i) σ (var 0F) = var 0F
+stack-sim-substS'-i≥ (suc i) σ (var (suc x)) = weaken1S (stack-sim-substS'-i≥ i σ (var x))
+
+stack-sim-substG'-i≥ i σ g = {!!}
+
+stack-sim-substT'-i≥ i σ t = {!!}
+
 -- substitute stack'
-stack-sim-substS' : Stack'Sn n m → SType (n + m) → SType n
-stack-sim-substG' : Stack'Sn n m → GType (n + m) → GType n
-stack-sim-substT' : Stack'Sn n m → Type (n + m) → Type n
+stack-sim-substS' : Stack'Sn n m → SType m → SType n
+stack-sim-substG' : Stack'Sn n m → GType m → GType n
+stack-sim-substT' : Stack'Sn n m → Type m → Type n
 
 stack-sim-substS' σ (gdd gst) = gdd (stack-sim-substG' σ gst)
-stack-sim-substS' σ (rec gst) = rec {!!}
-stack-sim-substS' σ (var x) = {!!}
+stack-sim-substS'{n}{m} σ (rec gst) = rec (stack-sim-substG'-i≥ 1F σ gst)
+stack-sim-substS' σ (var x)
+  with get'Sn x σ
+... | σ' , s = s
 
 stack-sim-substG' σ (transmit d t s) = transmit d (stack-sim-substT' σ t) (stack-sim-substS' σ s)
 stack-sim-substG' σ (choice d m alt) = choice d m (λ x → stack-sim-substS' σ (alt x))
@@ -360,6 +411,24 @@ stack-sim-substT' σ TUnit = TUnit
 stack-sim-substT' σ TInt = TInt
 stack-sim-substT' σ (TPair t t₁) = TPair (stack-sim-substT' σ t) (stack-sim-substT' σ t₁)
 stack-sim-substT' σ (TChan x) = TChan (stack-sim-substS' σ x)
+
+stack-sim-substS'-top-i≥ : (i : Fin (suc m)) → Stack'Sn n (m ∸ toℕ i) → SType (n + m) → SType (n + toℕ i)
+stack-sim-substG'-top-i≥ : (i : Fin (suc m)) → Stack'Sn n (m ∸ toℕ i) → GType (n + m) → GType (n + toℕ i)
+stack-sim-substT'-top-i≥ : (i : Fin (suc m)) → Stack'Sn n (m ∸ toℕ i) → Type (n + m) → Type (n + toℕ i)
+
+stack-sim-substS'-top-i≥ i σ (gdd gst) = {!!}
+stack-sim-substS'-top-i≥ i σ (rec gst) = rec (stack-sim-substG'-top-i≥ (suc i) σ gst)
+stack-sim-substS'-top-i≥ i σ (var x) = {!!}
+
+-- substitute top variables from stack'
+stack-sim-substS'-top : Stack'Sn n m → SType (n + m) → SType n
+stack-sim-substG'-top : Stack'Sn n m → GType (n + m) → GType n
+stack-sim-substT'-top : Stack'Sn n m → Type (n + m) → Type n
+
+stack-sim-substS'-top σ (gdd gst) = gdd (stack-sim-substG'-top σ gst)
+stack-sim-substS'-top{n}{m} σ (rec gst) = rec (stack-sim-substG'-top-i≥ 1F σ gst)
+stack-sim-substS'-top σ (var x) = {!!}
+
 
 -- Transform Stack of STypes to Stack of closed STypes by substitution 
 -- ⟪ ε , SType 0 , SType 1               , SType 2                                            , ⋯ ⟫
@@ -373,9 +442,9 @@ stack-transform ⟪ σ , x ⟫
 
 stack-transform' : Stack'S n m → Stack'Sn n m
 stack-transform' ε = ε
-stack-transform' ⟪ σ , x ⟫
+stack-transform'{n} ⟪ σ , x ⟫
   with stack-transform' σ
-... | σ' = ⟪ σ' , stack-sim-substS' σ' x ⟫
+... | σ' = ⟪ σ' , stack-sim-substS'-top σ' x  ⟫
 
 stack-cat : Stack n → Stack' n m → Stack (n + m)
 stack-cat σ ε = σ
@@ -529,8 +598,22 @@ module sanity-check where
 
 ----------------------------------------------------------------------
 
+
 open import DualCoinductive hiding (n ; m)
 
+_≈_ = COI._≈_
+_≈'_ = COI._≈'_
+_≈ᵗ_ = COI._≈ᵗ_
+
+-- IND to Coinductive using two stacks
+ind2coiS' : (i : Fin n) → Stack (n ∸ toℕ i) → Stack' (n ∸ toℕ i) (toℕ i) → IND.SType n → COI.SType
+ind2coiG' : (i : Fin n) → Stack (n ∸ toℕ i) → Stack' (n ∸ toℕ i) (toℕ i) → IND.GType n → COI.STypeF COI.SType
+ind2coiT' : (i : Fin n) → Stack (n ∸ toℕ i) → Stack' (n ∸ toℕ i) (toℕ i) → IND.Type n → COI.Type
+
+COI.SType.force (ind2coiS' i σ σ' (gdd gst)) = ind2coiG' i σ σ' gst
+COI.SType.force (ind2coiS'{n} i σ σ' (rec gst)) = ind2coiG' (suc i) σ ⟪ σ' , {!gst!} ⟫ gst
+COI.SType.force (ind2coiS' i σ σ' (var x)) = {!!}
+ 
 -- IND to Coinductive
 ind2coiS : Stack n → IND.SType n → COI.SType
 ind2coiG : Stack n → IND.GType n → COI.STypeF COI.SType
@@ -550,6 +633,16 @@ COI.SType.force (ind2coiS{n} σ (var x))
 ind2coiG σ (transmit d t s) = COI.transmit d (ind2coiT σ t) (ind2coiS σ s)
 ind2coiG σ (choice d m alt) = COI.choice d m (λ x → ind2coiS σ (alt x))
 ind2coiG σ end = COI.end
+
+-- Equivalence of IND to COI with one stack and IND to COI with two stacks
+
+ind2coi≈ind2coi'-S : (i : Fin n) (σ : Stack (n ∸ toℕ i)) (σ' : Stack' (n ∸ toℕ i) (toℕ i)) (s : IND.SType n)
+  → ind2coiS' i σ σ' s ≈ ind2coiS {!stack-cat σ σ'!} s  -- stack gets concatenated
+
+COI.Equiv.force (ind2coi≈ind2coi'-S i σ σ' (gdd gst)) = {!!}
+COI.Equiv.force (ind2coi≈ind2coi'-S i σ σ' (rec gst)) = {!!}
+COI.Equiv.force (ind2coi≈ind2coi'-S i σ σ' (var x)) = {!!}
+
 
 -- Message closure to Coinductive
 mcl2coiT : StackMCl n → MClType n → COI.Type
@@ -573,26 +666,38 @@ mcl2coiG σ end = COI.end
 
 ----------------------------------------------------------------------
 
-_≈_ = COI._≈_
-_≈'_ = COI._≈'_
-_≈ᵗ_ = COI._≈ᵗ_
+-- Agda does not recognize this even though rewrite rule was defined
+rewrfixS : {n : ℕ} {i : Fin n} → SType (suc (n ∸ suc (toℕ i) + toℕ i)) → SType n
+rewrfixG : {n : ℕ} {i : Fin n} → GType (suc (n ∸ suc (toℕ i) + toℕ i)) → GType n
+rewrfixS{n}{i} s rewrite (suc[n∸suc[toℕi]+toℕi]≡n{n}{i}) = s
+rewrfixG{n}{i} g rewrite (suc[n∸suc[toℕi]+toℕi]≡n{n}{i}) = g
+
+stack-unfoldS'-i : (i : Fin n)  (σ : Stack n) (s : IND.SType (suc (n ∸ suc (toℕ i) + toℕ i)))
+  → ind2coiS (proj₁ (stack-split i σ)) (stack-sim-substS'-top (stack-transform' (stack'2Stack'S (proj₂ (stack-split i σ)))) s) ≈ ind2coiS' i (proj₁ (stack-split i σ)) (proj₂ (stack-split i σ)) (rewrfixS{n}{i} s)
+
+
+{-
+-- won't work for the same reason as below
+stack-unfoldS-i : (i : Fin n) (σ : Stack n) (s : IND.SType (suc (n ∸ suc (toℕ i) + toℕ i)))
+  → ind2coiS (proj₁ (stack-split i σ)) (stack-sim-substS'-top (stack-transform' (stack'2Stack'S (proj₂ (stack-split i σ)))) s) ≈ ind2coiS σ (rewrfixS{n}{i} s)
+stack-unfoldG-i : (i : Fin n) (σ : Stack n) (g : IND.GType (suc (n ∸ suc (toℕ i) + toℕ i)))
+  → ind2coiG (proj₁ (stack-split i σ)) (stack-sim-substG'-top (stack-transform' (stack'2Stack'S (proj₂ (stack-split i σ)))) g) ≈' ind2coiG σ (rewrfixG{n}{i} g)
+
+COI.Equiv.force (stack-unfoldS-i i σ (gdd gst)) = {!!}
+COI.Equiv.force (stack-unfoldS-i{n} i σ (rec gst)) = {!stack-unfoldG-i (suc i) ? gst!}
+COI.Equiv.force (stack-unfoldS-i i σ (var x)) = {!!}
+
+-- won't work. rec case adds something to σ on the left side, but something at the end of (stack-cat σ σ') on the right side.
 
 stack-unfoldS' : (σ : Stack n) (σ' : Stack' n m) (s : IND.SType (n + m)) →
-  ind2coiS σ (stack-sim-substS' (stack-transform' (stack'2Stack'S σ')) s) ≈ ind2coiS (stack-cat σ σ') s
+  ind2coiS σ (stack-sim-substS'-top (stack-transform' (stack'2Stack'S σ')) s) ≈ ind2coiS (stack-cat σ σ') s
 stack-unfoldG' : (σ : Stack n) (σ' : Stack' n m) (g : IND.GType (n + m)) →
-  ind2coiG σ (stack-sim-substG' (stack-transform' (stack'2Stack'S σ')) g) ≈' ind2coiG (stack-cat σ σ') g
+  ind2coiG σ (stack-sim-substG'-top (stack-transform' (stack'2Stack'S σ')) g) ≈' ind2coiG (stack-cat σ σ') g
 
 COI.Equiv.force (stack-unfoldS' σ σ' (gdd gst)) = {!!}
-COI.Equiv.force (stack-unfoldS' σ σ' (rec gst)) = {!!} 
+COI.Equiv.force (stack-unfoldS'{n}{m} σ σ' (rec gst)) = {!stack-unfoldG'{suc n}{m} ⟪ σ , stack-sim-substG'-top-i≥ 1F (stack-transform' (stack'2Stack'S σ')) gst ⟫ (weaken1-Stack' 0F σ') gst!}
 COI.Equiv.force (stack-unfoldS' σ σ' (var x)) = {!!}
-
-
-stack-unfoldS : (σ : Stack n) (s : IND.SType n) →
-  ind2coiS ε (stack-sim-substS (stack-transform (stack2StackS σ)) s) ≈ ind2coiS σ s
-
-COI.Equiv.force (stack-unfoldS σ (gdd gst)) = {!!}
-COI.Equiv.force (stack-unfoldS σ (rec gst)) = {!!}
-COI.Equiv.force (stack-unfoldS σ (var x)) = {!!}
+-}
 
 ----------------------------------------------------------------------
 
@@ -622,7 +727,6 @@ mcl-equiv-G : (σ : Stack n) (g : IND.GType n) →
 mcl-equiv-T : (σ : Stack n) (t : IND.Type n) →
   mcl2coiT (stack2StackMCl σ) (mclT (stack2StackS σ) t) ≈ᵗ ind2coiT σ t
 
-
 COI.Equiv.force (mcl-equiv-S σ (gdd gst)) = mcl-equiv-G σ gst
 COI.Equiv.force (mcl-equiv-S σ (rec gst)) = mcl-equiv-G ⟪ σ , gst ⟫ gst
 COI.Equiv.force (mcl-equiv-S{n} σ (var x))
@@ -637,8 +741,7 @@ mcl-equiv-G σ end = COI.eq-end
 mcl-equiv-T σ TUnit = COI.eq-unit
 mcl-equiv-T σ TInt = COI.eq-int
 mcl-equiv-T σ (TPair t t₁) = COI.eq-pair (mcl-equiv-T σ t) (mcl-equiv-T σ t₁)
-mcl-equiv-T σ (TChan x) = COI.eq-chan (stack-unfoldS σ x)
-
+mcl-equiv-T{n} σ (TChan x) = COI.eq-chan {! !}
 
 
 -- naive-mcl-dual : (σ : StackMCl n) (s : IND.SType n) →
