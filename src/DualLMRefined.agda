@@ -638,12 +638,12 @@ ind2coiG σ end = COI.end
 
 -- Equivalence of IND to COI with one stack and IND to COI with two stacks
 
-ind2coi≈ind2coi'-S : (i : Fin n) (σ : Stack (n ∸ toℕ i)) (σ' : Stack' (n ∸ toℕ i) (toℕ i)) (s : IND.SType n)
-  → ind2coiS' i σ σ' s ≈ ind2coiS {!stack-cat σ σ'!} s  -- stack gets concatenated
+ind2coi≈ind2coi'-S : (i : Fin n) (σ : Stack (suc n)) (s : IND.SType (suc n))
+  → ind2coiS' 0F σ ε s ≈ ind2coiS σ s 
 
-COI.Equiv.force (ind2coi≈ind2coi'-S i σ σ' (gdd gst)) = {!!}
-COI.Equiv.force (ind2coi≈ind2coi'-S i σ σ' (rec gst)) = {!!}
-COI.Equiv.force (ind2coi≈ind2coi'-S i σ σ' (var x)) = {!!}
+COI.Equiv.force (ind2coi≈ind2coi'-S i σ (gdd gst)) = {!!}
+COI.Equiv.force (ind2coi≈ind2coi'-S i σ (rec gst)) = {!!}
+COI.Equiv.force (ind2coi≈ind2coi'-S i σ (var x)) = {!!}
 
 
 -- Message closure to Coinductive
