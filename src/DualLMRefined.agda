@@ -695,6 +695,16 @@ ind2coiG σ (transmit d t s) = COI.transmit d (ind2coiT σ t) (ind2coiS σ s)
 ind2coiG σ (choice d m alt) = COI.choice d m (λ x → ind2coiS σ (alt x))
 ind2coiG σ end = COI.end
 
+-- IND to Coinductive using StackS0
+ind2coiS'' : StackS0 n → IND.SType n → COI.SType
+ind2coiG'' : StackS0 n → IND.GType n → COI.STypeF COI.SType
+
+COI.SType.force (ind2coiS'' σ (gdd gst)) = ind2coiG'' σ gst
+COI.SType.force (ind2coiS''{n} σ (rec gst)) = ind2coiG''{suc n} ⟪ σ , stack-sim-substS σ (rec gst) ⟫ gst
+ind2coiS'' σ (var x)
+  with getS0 x σ
+... | σ' , gxs = ind2coiS'' ε gxs
+
 -- Equivalence of IND to COI with one stack and IND to COI with two stacks
 ind2coiS≈ind2coiS' : (σ : Stack' 0 n) (s : IND.SType n)
   → ind2coiS' (fromℕ n) ε σ s ≈ ind2coiS (stack'2Stack σ) s
@@ -734,7 +744,6 @@ mcl2coiG σ end = COI.end
 -- lemm 2
 -- ind2coiS ⟪ σ , x ⟫ s ≈ ind2coiS σ (st-substS' 0F (rec x) s)
 
-
 -- unfolding vs single substitution
 ind2coi-substS : (σ : Stack n) (g : GType (suc n)) (s : SType (suc n)) →
   ind2coiS ⟪ σ , g ⟫ s ≈ ind2coiS σ (st-substS' 0F (rec g) s)
@@ -743,15 +752,16 @@ ind2coi-substG : (σ : Stack n) (g : GType (suc n)) (g' : GType (suc n)) →
 
 COI.Equiv.force (ind2coi-substS σ g (gdd gst)) = ind2coi-substG σ g gst
 -- required property does not hold for e.g. gst = transmit d t (var 1F)
+-- (because applying the lemma non-inductively..?)
 COI.Equiv.force (ind2coi-substS σ g (rec gst)) = COI.≈'-trans (COI.≈'-trans (ind2coi-substG ⟪ σ , g ⟫ gst gst) (ind2coi-substG σ g (st-substG' 0F (rec gst) gst))) (COI.≈'-trans {!!} (COI.≈'-symm (ind2coi-substG σ (st-substG' 1F (weaken1S (rec g)) gst) (st-substG' 1F (weaken1S (rec g)) gst))))
 COI.Equiv.force (ind2coi-substS σ g (var 0F)) = COI.≈'-refl
 COI.Equiv.force (ind2coi-substS {n} σ g (var (suc x))) = {!!}
---   with get x σ | n∸x≡suc[n∸sucx]{n}{toℕ x} toℕx<n
--- ... | σ' , y | w = {!!}
+
 
 ind2coi-substG σ g (transmit d t s) = COI.eq-transmit d {!!} (ind2coi-substS σ g s)
 ind2coi-substG σ g (choice d m alt) = COI.eq-choice d λ i → ind2coi-substS σ g (alt i)
 ind2coi-substG σ g end = COI.eq-end
+
 
 -- unfolding vs simultaneous substitution: special, needed case
 st-unfold : {n : ℕ} (σ : Stack n) (s : IND.SType n) →
@@ -765,8 +775,17 @@ stack-unfoldS : (σ : Stack n) (σ' : Stack' n m) (s : IND.SType (n + m)) →
   ind2coiS σ (stack-sim-substS'-top (stack-transform' (stack'2Stack'S σ')) s) ≈ ind2coiS (stack-cat σ σ') s
 
 COI.Equiv.force (stack-unfoldS {n} σ σ' (gdd gst)) = {!!}
-stack-unfoldS σ σ' (rec gst) = {!!}
+COI.Equiv.force (stack-unfoldS σ σ' (rec gst)) = {!!}
 COI.Equiv.force (stack-unfoldS {n} σ σ' (var x)) = {!!}
+
+
+-- unfolding vs simultaneous substition: general case w/ alt. def. for ind2coiS
+stack-unfoldS' : (i : Fin (suc n)) (σ : Stack (n ∸ toℕ i)) (σ' : Stack' (n ∸ toℕ i) (toℕ i)) (s : IND.SType n) →
+  ind2coiS σ (stack-sim-substS'-top (stack-transform' (stack'2Stack'S σ')) s) ≈ ind2coiS' i σ σ' s
+
+COI.Equiv.force (stack-unfoldS' i σ σ' (gdd gst)) = {!!}
+COI.Equiv.force (stack-unfoldS' i σ σ' (rec gst)) = {!!} -- req. first lemma from graveyard of lemmas
+COI.Equiv.force (stack-unfoldS' i σ σ' (var x)) = {!!}
 
 ----------------------------------------------------------------------
 
@@ -811,6 +830,21 @@ mcl-equiv-T σ TUnit = COI.eq-unit
 mcl-equiv-T σ TInt = COI.eq-int
 mcl-equiv-T σ (TPair t t₁) = COI.eq-pair (mcl-equiv-T σ t) (mcl-equiv-T σ t₁)
 mcl-equiv-T {n} σ (TChan x) = COI.eq-chan {!!}
+
+σ : Stack 1F
+σ = ⟪ ε , end ⟫
+
+g : GType 2F
+g = transmit SND TInt (var 1F)
+
+s : COI.SType
+s = ind2coiS σ (rec g)
+
+s' : COI.SType
+s' = ind2coiS ε (stack-sim-substS (stack-transform (stack2StackS σ)) (rec g))
+
+s≈s' : s ≈ s'
+COI.Equiv.force s≈s' = COI.eq-transmit SND COI.eq-int (record { force = COI.eq-end })
 
 -- naive-mcl-dual : (σ : StackMCl n) (s : IND.SType n) →
 --  mcl2coiS σ (naive-dualSt (mclS (stackTail2StackS σ) s)) ≈ mcl2coiS σ (dualS (stackTail2StackS σ) s)
