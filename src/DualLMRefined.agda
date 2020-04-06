@@ -695,6 +695,7 @@ ind2coiG σ (transmit d t s) = COI.transmit d (ind2coiT σ t) (ind2coiS σ s)
 ind2coiG σ (choice d m alt) = COI.choice d m (λ x → ind2coiS σ (alt x))
 ind2coiG σ end = COI.end
 
+
 -- IND to Coinductive using StackS0
 ind2coiS'' : StackS0 n → IND.SType n → COI.SType
 ind2coiG'' : StackS0 n → IND.GType n → COI.STypeF COI.SType
@@ -704,6 +705,7 @@ COI.SType.force (ind2coiS''{n} σ (rec gst)) = ind2coiG''{suc n} ⟪ σ , stack-
 ind2coiS'' σ (var x)
   with getS0 x σ
 ... | σ' , gxs = ind2coiS'' ε gxs
+
 
 -- Equivalence of IND to COI with one stack and IND to COI with two stacks
 ind2coiS≈ind2coiS' : (σ : Stack' 0 n) (s : IND.SType n)
@@ -751,12 +753,11 @@ ind2coi-substG : (σ : Stack n) (g : GType (suc n)) (g' : GType (suc n)) →
   ind2coiG ⟪ σ , g ⟫ g' ≈' ind2coiG σ (st-substG' zero (rec g) g')
 
 COI.Equiv.force (ind2coi-substS σ g (gdd gst)) = ind2coi-substG σ g gst
--- required property does not hold for e.g. gst = transmit d t (var 1)
--- (because applying the lemma non-inductively..?)
-COI.Equiv.force (ind2coi-substS σ g (rec gst)) = {!!} -- COI.≈'-trans (COI.≈'-trans (ind2coi-substG ⟪ σ , g ⟫ gst gst) (ind2coi-substG σ g (st-substG' 0 (rec gst) gst))) (COI.≈'-trans {!!} (COI.≈'-symm (ind2coi-substG σ (st-substG' 1 (weaken1S (rec g)) gst) (st-substG' 1 (weaken1S (rec g)) gst))))
+COI.Equiv.force (ind2coi-substS σ g (rec gst)) = {!!}
+-- the following line for rec-case is a contradiction for gst = transmit d t (var 1)
+-- COI.≈'-trans (COI.≈'-trans (ind2coi-substG ⟪ σ , g ⟫ gst gst) (ind2coi-substG σ g (st-substG' 0 (rec gst) gst))) (COI.≈'-trans {!!} (COI.≈'-symm (ind2coi-substG σ (st-substG' 1 (weaken1S (rec g)) gst) (st-substG' 1 (weaken1S (rec g)) gst))))
 COI.Equiv.force (ind2coi-substS σ g (var zero)) = COI.≈'-refl
 COI.Equiv.force (ind2coi-substS {n} σ g (var (suc x))) = {!!}
-
 
 ind2coi-substG σ g (transmit d t s) = COI.eq-transmit d {!!} (ind2coi-substS σ g s)
 ind2coi-substG σ g (choice d m alt) = COI.eq-choice d λ i → ind2coi-substS σ g (alt i)
