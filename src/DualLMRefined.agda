@@ -40,7 +40,7 @@ inject+0-x=x {x = suc x} = cong suc inject+0-x=x
 {-# REWRITE inject+0-x=x #-}
 
 n+sucm : n + suc m ≡ suc (n + m)
-n+sucm {0F} = refl
+n+sucm {0} = refl
 n+sucm {suc n} = cong suc (n+sucm{n})
 
 {-# REWRITE n+sucm #-}
@@ -52,7 +52,7 @@ n=fromℕtoℕn {suc n} = cong suc (n=fromℕtoℕn {n})
 {-# REWRITE n=fromℕtoℕn #-}
 
 sucn∸suctoℕx≡n∸toℕx : {n : ℕ} {x : Fin n} → suc (n ∸ suc (toℕ x)) ≡ n ∸ (toℕ x)
-sucn∸suctoℕx≡n∸toℕx {suc n} {0F} = refl
+sucn∸suctoℕx≡n∸toℕx {suc n} {zero} = refl
 sucn∸suctoℕx≡n∸toℕx {suc n} {suc x} = sucn∸suctoℕx≡n∸toℕx{n}{x}
 
 sym-sucn∸suctoℕx≡n∸toℕx : {n : ℕ} {x : Fin n} → n ∸ (toℕ x) ≡ suc (n ∸ suc (toℕ x))
@@ -60,8 +60,8 @@ sym-sucn∸suctoℕx≡n∸toℕx {n} {x} = sym (sucn∸suctoℕx≡n∸toℕx{n
 
 {-# REWRITE sym-sucn∸suctoℕx≡n∸toℕx #-}
 
-n∸n≡0F : n ∸ n ≡ 0F
-n∸n≡0F {0F} = refl
+n∸n≡0F : n ∸ n ≡ 0
+n∸n≡0F {0} = refl
 n∸n≡0F {suc n} = n∸n≡0F{n}
 
 {-# REWRITE n∸n≡0F #-}
@@ -72,34 +72,34 @@ n∸n≡0F {suc n} = n∸n≡0F{n}
 -- some more required properties on natural numbers and fin
 
 toℕx≤n : {n : ℕ} {x : Fin n} → Data.Nat._≤_ (toℕ x) n
-toℕx≤n {suc n} {0F} = z≤n
+toℕx≤n {suc n} {zero} = z≤n
 toℕx≤n {suc n} {suc x} = s≤s toℕx≤n
 
 toℕx≤n' : {n : ℕ} {x : Fin (suc n)} → Data.Nat._≤_ (toℕ x) n
-toℕx≤n' {0F} {0F} = z≤n
-toℕx≤n' {suc n} {0F} = z≤n
+toℕx≤n' {0} {zero} = z≤n
+toℕx≤n' {suc n} {zero} = z≤n
 toℕx≤n' {suc n} {suc x} = s≤s (toℕx≤n'{n}{x})
 
 n∸x+x≡n : {n x : ℕ} → Data.Nat._≤_ x n  → n ∸ x + x ≡ n
-n∸x+x≡n {0F} {0F} le = refl
-n∸x+x≡n {0F} {suc x} ()
-n∸x+x≡n {suc n} {0F} le = refl
+n∸x+x≡n {0} {zero} le = refl
+n∸x+x≡n {0} {suc x} ()
+n∸x+x≡n {suc n} {zero} le = refl
 n∸x+x≡n {suc n} {suc x} (s≤s le) = cong suc (n∸x+x≡n le)
 
 toℕx<n : {n : ℕ} {x : Fin n} → Data.Nat._<_ (toℕ x) n
-toℕx<n {suc n} {0F} = s≤s z≤n
+toℕx<n {suc n} {zero} = s≤s z≤n
 toℕx<n {suc n} {suc x} = s≤s toℕx<n
 
 n∸x≡suc[n∸sucx] : {n x : ℕ} → Data.Nat._<_ x n → n ∸ x ≡ suc (n ∸ (suc x))
-n∸x≡suc[n∸sucx] {suc n} {0F} le = refl
+n∸x≡suc[n∸sucx] {suc n} {0} le = refl
 n∸x≡suc[n∸sucx] {suc n} {suc x} (s≤s le) = n∸x≡suc[n∸sucx] le
 
 suc[n+x]≡n+sucx : {n x : ℕ} → suc (n + x) ≡ (n + suc x)
-suc[n+x]≡n+sucx {0F} {x} = refl
+suc[n+x]≡n+sucx {0} {x} = refl
 suc[n+x]≡n+sucx {suc n} {x} = refl
 
 suc[n∸sucx+x]≡n : {n x : ℕ} → Data.Nat._<_ x n → suc (n ∸ (suc x) + x) ≡ n
-suc[n∸sucx+x]≡n {suc n} {0F} le = refl
+suc[n∸sucx+x]≡n {suc n} {0} le = refl
 suc[n∸sucx+x]≡n {suc n} {suc x} (s≤s le) = cong suc (suc[n∸sucx+x]≡n {n} {x} le)
 
 suc[n∸suc[toℕi]+toℕi]≡n : {n : ℕ} {i : Fin n} → suc (n ∸ (suc (toℕ i)) + toℕ i) ≡ n
@@ -113,11 +113,11 @@ m∸toℕ+toℕ≡m {n} {i} = m∸n+n≡m{n}{toℕ i} toℕx≤n'
 {-# REWRITE m∸toℕ+toℕ≡m #-}
 
 <suc : {n x : ℕ} → Data.Nat._<_ x n → Data.Nat._<_ x (suc n)
-<suc {suc n} {0F} le = s≤s z≤n
+<suc {suc n} {0} le = s≤s z≤n
 <suc {suc n} {suc x} (s≤s le) = s≤s (<suc {n} {x} le)
 
 ≤suc : {n x : ℕ} → Data.Nat._≤_ x n → Data.Nat._≤_ x (suc n)
-≤suc {n} {0F} le = z≤n
+≤suc {n} {0} le = z≤n
 ≤suc {suc n} {suc x} (s≤s le) = s≤s (≤suc {n} {x} le)
 
 
@@ -144,7 +144,7 @@ module IND where
     data MClType (n : ℕ) : Set where
       MClTUnit MClTInt : MClType n
       MClTPair : MClType n → MClType n → MClType n
-      MClTChan : SType 0F → MClType n
+      MClTChan : SType 0 → MClType n
 
     data MClSType (n : ℕ) : Set where
       tgdd : (tgst : MClGType n) → MClSType n
@@ -271,7 +271,7 @@ data StackS : ℕ → Set where
 
 data StackS0 : ℕ → Set where
   ε : StackS0 0
-  ⟪_,_⟫ : StackS0 n → IND.SType 0F → StackS0 (suc n)
+  ⟪_,_⟫ : StackS0 n → IND.SType 0 → StackS0 (suc n)
 
 data StackMCl : ℕ → Set where
   ε : StackMCl 0
@@ -292,50 +292,50 @@ data Stack'Sn : ℕ → ℕ → Set where
 
 
 get : {n : ℕ} → (i : Fin n) → Stack n → Stack (n ∸ (suc (toℕ i))) × IND.GType (n ∸ (toℕ i))
-get {suc n} 0F ⟪ σ , x ⟫ = σ , x
+get {suc n} zero ⟪ σ , x ⟫ = σ , x
 get {suc n} (suc i) ⟪ σ , x ⟫ = get i σ
 
 getS : {n : ℕ} → (i : Fin n) → StackS n → StackS (n ∸ (suc (toℕ i))) × IND.SType (n ∸ (suc (toℕ i)))
-getS {suc n} 0F ⟪ σ , x ⟫ = σ , x
+getS {suc n} zero ⟪ σ , x ⟫ = σ , x
 getS {suc n} (suc i) ⟪ σ , x ⟫ = getS i σ
 
-getS0 : {n : ℕ} → (i : Fin n) → StackS0 n → StackS0 (n ∸ (suc (toℕ i))) × IND.SType 0F
-getS0 {suc n} 0F ⟪ σ , x ⟫ = σ , x
+getS0 : {n : ℕ} → (i : Fin n) → StackS0 n → StackS0 (n ∸ (suc (toℕ i))) × IND.SType 0
+getS0 {suc n} zero ⟪ σ , x ⟫ = σ , x
 getS0 {suc n} (suc i) ⟪ σ , x ⟫ = getS0 i σ
 
 getMCl : {n : ℕ} → (i : Fin n) → StackMCl n → StackMCl (n ∸ (suc (toℕ i))) × IND.MClGType (n ∸ (toℕ i))
-getMCl {suc n} 0F ⟪ σ , x ⟫ = σ , x
+getMCl {suc n} zero ⟪ σ , x ⟫ = σ , x
 getMCl {suc n} (suc i) ⟪ σ , x ⟫ = getMCl i σ
 
 get' : {n m : ℕ} → (i : Fin m) → Stack' n m → Stack' n (m ∸ (suc (toℕ i))) × IND.GType (n + (m ∸ (toℕ i)))
-get' {n} {suc m} 0F ⟪ σ , x ⟫ = σ , x
+get' {n} {suc m} zero ⟪ σ , x ⟫ = σ , x
 get' {n} {suc m} (suc i) ⟪ σ , x ⟫ = get' i σ
 
 get'S : {n m : ℕ} → (i : Fin m) → Stack'S n m → Stack'S n (m ∸ (suc (toℕ i))) × IND.SType (n + (m ∸ (suc (toℕ i))))
-get'S {n} {suc m} 0F ⟪ σ , x ⟫ = σ , x
+get'S {n} {suc m} zero ⟪ σ , x ⟫ = σ , x
 get'S {n} {suc m} (suc i) ⟪ σ , x ⟫ = get'S i σ
 
 get'Sn : {n m : ℕ} → (i : Fin m) → Stack'Sn n m → Stack'Sn n (m ∸ (suc (toℕ i))) × IND.SType n
-get'Sn {n} {suc m} 0F ⟪ σ , x ⟫ = σ , x
+get'Sn {n} {suc m} zero ⟪ σ , x ⟫ = σ , x
 get'Sn {n} {suc m} (suc i) ⟪ σ , x ⟫ = get'Sn i σ
 
 ----------------------------------------------------------------------
 
 stack-split : (i : Fin (suc n)) → Stack n → Stack (n ∸ toℕ i) × Stack' (n ∸ toℕ i) (toℕ i)
-stack-split 0F σ = σ , ε
+stack-split zero σ = σ , ε
 stack-split{n} (suc i) ⟪ σ , x ⟫
   with stack-split i σ
 ... | σ' , σ'' = σ' , ⟪ σ'' , x ⟫
 
 -- couldn't achieve this by rewriting alone
 suc[n+[m∸sucx]+x]≡n+m : {n m x : ℕ} → Data.Nat._<_ x m → suc (n + (m ∸ suc x) + x) ≡ n + m
-suc[n+[m∸sucx]+x]≡n+m {0F} {m} {x} le = suc[n∸sucx+x]≡n{m}{x} le
-suc[n+[m∸sucx]+x]≡n+m {suc n} {suc m} {0F} le = refl
+suc[n+[m∸sucx]+x]≡n+m {0} {m} {x} le = suc[n∸sucx+x]≡n{m}{x} le
+suc[n+[m∸sucx]+x]≡n+m {suc n} {suc m} {0} le = refl
 suc[n+[m∸sucx]+x]≡n+m {suc n} {suc m} {suc x} (s≤s le) = cong suc (cong suc (suc[n+[m∸sucx]+x]≡n+m le))
 
 -- i from the top of the stack
 stack'-m-i : {n m : ℕ} → (i : Fin m) → Stack' n m → Stack' (n + (m ∸ (toℕ i))) (toℕ i)
-stack'-m-i {n} {m} 0F σ = ε
+stack'-m-i {n} {m} zero σ = ε
 stack'-m-i {n} {suc m} (suc i) ⟪ σ , x ⟫ rewrite (sym (suc[n+[m∸sucx]+x]≡n+m{n}{m}{toℕ i} toℕx<n)) = ⟪ (stack'-m-i i σ) , x ⟫
 
 weaken1-Stack' : (i : Fin (suc n)) → Stack' n m → Stack' (suc n) m
@@ -353,11 +353,11 @@ stack-sim-substT-i> : (i : Fin n) → StackS0 (n ∸ (toℕ (suc i))) → Type n
 
 stack-sim-substS-i> i σ (gdd gst) = gdd (stack-sim-substG-i> i σ gst)
 stack-sim-substS-i> i σ (rec gst) = rec (stack-sim-substG-i> (suc i) σ gst)
-stack-sim-substS-i>{suc n} 0F σ (var 0F) = var 0F
-stack-sim-substS-i> 0F σ (var (suc x))
+stack-sim-substS-i>{suc n} zero σ (var zero) = var zero
+stack-sim-substS-i> zero σ (var (suc x))
   with getS0 x σ 
 ... | σ' , s = weaken1S s
-stack-sim-substS-i> (suc i) σ (var 0F) = var 0F
+stack-sim-substS-i> (suc i) σ (var zero) = var zero
 stack-sim-substS-i> (suc i) σ (var (suc x)) = weaken1S (stack-sim-substS-i> i σ (var x))
 
 stack-sim-substG-i> i σ (transmit d t s) = transmit d (stack-sim-substT-i> i σ t) (stack-sim-substS-i> i σ s)
@@ -371,12 +371,12 @@ stack-sim-substT-i> i σ (TChan x) = TChan (stack-sim-substS-i> i σ x)
 
 
 -- substitute stack
-stack-sim-substS : StackS0 n → SType n → SType 0F
-stack-sim-substG : StackS0 n → GType n → GType 0F
-stack-sim-substT : StackS0 n → Type n → Type 0F
+stack-sim-substS : StackS0 n → SType n → SType 0
+stack-sim-substG : StackS0 n → GType n → GType 0
+stack-sim-substT : StackS0 n → Type n → Type 0
 
 stack-sim-substS σ (gdd gst) = gdd (stack-sim-substG σ gst)
-stack-sim-substS σ (rec gst) = rec (stack-sim-substG-i> 0F σ gst) -- Apply stack substitution to variables 1, ..., suc n; keep 0F; can't extend StackS0 since only SType 0F allowed
+stack-sim-substS σ (rec gst) = rec (stack-sim-substG-i> zero σ gst) -- Apply stack substitution to variables 1, ..., suc n; keep 0F; can't extend StackS0 since only SType 0F allowed
 stack-sim-substS σ (var x)
   with getS0 x σ
 ... | σ' , s = s
@@ -397,10 +397,10 @@ stack-sim-substT'-i≥ : (i : Fin (suc m)) → Stack'Sn n (m ∸ toℕ i) → Ty
 
 stack-sim-substS'-i≥ i σ (gdd gst) = gdd (stack-sim-substG'-i≥ i σ gst)
 stack-sim-substS'-i≥ i σ (rec gst) = rec (stack-sim-substG'-i≥ (suc i) σ gst)
-stack-sim-substS'-i≥ 0F σ (var x)
+stack-sim-substS'-i≥ zero σ (var x)
   with get'Sn x σ
 ... | σ' , y = y
-stack-sim-substS'-i≥ (suc i) σ (var 0F) = var 0F
+stack-sim-substS'-i≥ (suc i) σ (var zero) = var zero
 stack-sim-substS'-i≥ (suc i) σ (var (suc x)) = weaken1S (stack-sim-substS'-i≥ i σ (var x))
 
 stack-sim-substG'-i≥ i σ (transmit d t s) = transmit d (stack-sim-substT'-i≥ i σ t) (stack-sim-substS'-i≥ i σ s)
@@ -418,7 +418,7 @@ stack-sim-substG' : Stack'Sn n m → GType m → GType n
 stack-sim-substT' : Stack'Sn n m → Type m → Type n
 
 stack-sim-substS' σ (gdd gst) = gdd (stack-sim-substG' σ gst)
-stack-sim-substS'{n}{m} σ (rec gst) = rec (stack-sim-substG'-i≥ 1F σ gst)
+stack-sim-substS'{n}{m} σ (rec gst) = rec (stack-sim-substG'-i≥ (suc zero) σ gst)
 stack-sim-substS' σ (var x)
   with get'Sn x σ
 ... | σ' , s = s
@@ -454,12 +454,12 @@ stack-sim-substG'-top : Stack'Sn n m → GType (n + m) → GType n
 stack-sim-substT'-top : Stack'Sn n m → Type (n + m) → Type n
 
 stack-sim-substS'-top σ (gdd gst) = gdd (stack-sim-substG'-top σ gst)
-stack-sim-substS'-top{n}{m} σ (rec gst) = rec (stack-sim-substG'-top{m = m} (weaken1-Stack'Sn 0F σ) gst) -- alternative: rec (stack-sim-substG'-top-i≥ 1F σ gst)
+stack-sim-substS'-top{n}{m} σ (rec gst) = rec (stack-sim-substG'-top{m = m} (weaken1-Stack'Sn zero σ) gst) -- alternative: rec (stack-sim-substG'-top-i≥ 1 σ gst)
 stack-sim-substS'-top{n}{m} σ (var x) = {!!} -- <= n => var n, > n => substitute
 
 -- Transform Stack of STypes to Stack of closed STypes by substitution 
 -- ⟪ ε , SType 0 , SType 1               , SType 2                                            , ⋯ ⟫
--- ⟪ ε , SType 0 , SType 1 [0F ↦ SType 0], SType 2 [0F ↦ SType 0, 1F ↦ SType 1 [0F ↦ SType 0]], ⋯ ⟫
+-- ⟪ ε , SType 0 , SType 1 [0 ↦ SType 0], SType 2 [0 ↦ SType 0, 1 ↦ SType 1 [0 ↦ SType 0]], ⋯ ⟫
 -- ⟪ ε , SType 0 , SType 0               , SType 0                                            , ⋯ ⟫
 stack-transform : StackS n → StackS0 n
 stack-transform ε = ε
@@ -481,9 +481,9 @@ stack-cat' : Stack' 0 n → Stack' n m → Stack' 0 (n + m)
 stack-cat' σ ε = σ
 stack-cat' σ ⟪ σ' , x ⟫ = ⟪ (stack-cat' σ σ') , x ⟫
 
-stack-sim-substS-refl : (s : SType 0F) → stack-sim-substS ε s ≡ s
-stack-sim-substG-refl : (g : GType 0F) → stack-sim-substG ε g ≡ g
-stack-sim-substT-refl : (t : Type 0F) → stack-sim-substT ε t ≡ t
+stack-sim-substS-refl : (s : SType 0) → stack-sim-substS ε s ≡ s
+stack-sim-substG-refl : (g : GType 0) → stack-sim-substG ε g ≡ g
+stack-sim-substT-refl : (t : Type 0) → stack-sim-substT ε t ≡ t
 
 stack-sim-substS-refl (gdd gst) = cong gdd (stack-sim-substG-refl gst)
 stack-sim-substS-refl (rec gst) = {!!} -- requires stack-sim-substG-i>-refl
@@ -631,23 +631,23 @@ dualT σ (TChan x) = MClTChan (stack-sim-substS (stack-transform σ) x)
 module sanity-check where
   -- μx.!x.x → μx.?(μx.!x.x).x
   S : SType 0
-  S = rec (transmit SND (TChan (var 0F)) (var 0F))
-  DS = rec (transmit RCV (weaken1T (TChan S)) (var 0F))
+  S = rec (transmit SND (TChan (var zero)) (var zero))
+  DS = rec (transmit RCV (weaken1T (TChan S)) (var zero))
 
   _ : mclS ε DS ≡ dualS ε S
   _ = refl
 
   -- μx.!x.!x.x → μx.?(μx.!x.!x.x).?(μx.!x.!x.x).x
   S' : SType 0
-  S' = rec (transmit SND (TChan (var 0F)) (gdd ((transmit SND (TChan (var 0F)) (var 0F)))))
-  DS' =  rec (transmit RCV (weaken1T (TChan S')) (gdd ((transmit RCV (weaken1T (TChan S')) (var 0F)))))
+  S' = rec (transmit SND (TChan (var zero)) (gdd ((transmit SND (TChan (var zero)) (var zero)))))
+  DS' =  rec (transmit RCV (weaken1T (TChan S')) (gdd ((transmit RCV (weaken1T (TChan S')) (var zero)))))
 
   _ : mclS ε DS' ≡ dualS ε S'
   _ = refl
 
   -- μx.!x.(μy.!y.y) → μx.?(μx.!x.(μy.!y.y)).(μy.?(μy.!y.y).y)
   S'' : SType 0
-  S'' = rec (transmit SND (TChan (var 0F)) (rec (transmit SND (TChan (var 0F)) (var 0F))))
+  S'' = rec (transmit SND (TChan (var zero)) (rec (transmit SND (TChan (var zero)) (var zero))))
   DS'' = rec (transmit RCV (weaken1T (TChan S'')) (weaken1S DS))
 
   _ : mclS ε DS'' ≡ dualS ε S''
@@ -663,9 +663,9 @@ _≈'_ = COI._≈'_
 _≈ᵗ_ = COI._≈ᵗ_
 
 -- IND to Coinductive using two stacks
--- e.g. i = 0F => σ
---      i = 1F => σ , g         -- g = get σ' 0F
---      i = 2F => σ , g' , g    -- g = get σ' 0F; g' = get σ' 1F
+-- e.g. i = 0 => σ
+--      i = 1 => σ , g         -- g = get σ' 0
+--      i = 2F => σ , g' , g    -- g = get σ' 0; g' = get σ' 1
 --      i = n  => σ'
 ind2coiS' : (i : Fin (suc n)) → Stack (n ∸ toℕ i) → Stack' (n ∸ toℕ i) (toℕ i) → IND.SType n → COI.SType
 ind2coiG' : (i : Fin (suc n)) → Stack (n ∸ toℕ i) → Stack' (n ∸ toℕ i) (toℕ i) → IND.GType n → COI.STypeF COI.SType
@@ -739,22 +739,22 @@ mcl2coiG σ end = COI.end
 ----------------------------------------------------------------------
 
 -- lemm 1
--- stack-sim-substS (stack-transform ⟪ stack2StackS σ , (rec x) ⟫) s ≡ stack-sim-substS (stack-transform (stack2StackS σ)) (st-substS' 0F (rec x) s)
+-- stack-sim-substS (stack-transform ⟪ stack2StackS σ , (rec x) ⟫) s ≡ stack-sim-substS (stack-transform (stack2StackS σ)) (st-substS' 0 (rec x) s)
 
 -- lemm 2
--- ind2coiS ⟪ σ , x ⟫ s ≈ ind2coiS σ (st-substS' 0F (rec x) s)
+-- ind2coiS ⟪ σ , x ⟫ s ≈ ind2coiS σ (st-substS' 0 (rec x) s)
 
 -- unfolding vs single substitution
 ind2coi-substS : (σ : Stack n) (g : GType (suc n)) (s : SType (suc n)) →
-  ind2coiS ⟪ σ , g ⟫ s ≈ ind2coiS σ (st-substS' 0F (rec g) s)
+  ind2coiS ⟪ σ , g ⟫ s ≈ ind2coiS σ (st-substS' zero (rec g) s)
 ind2coi-substG : (σ : Stack n) (g : GType (suc n)) (g' : GType (suc n)) →
-  ind2coiG ⟪ σ , g ⟫ g' ≈' ind2coiG σ (st-substG' 0F (rec g) g')
+  ind2coiG ⟪ σ , g ⟫ g' ≈' ind2coiG σ (st-substG' zero (rec g) g')
 
 COI.Equiv.force (ind2coi-substS σ g (gdd gst)) = ind2coi-substG σ g gst
--- required property does not hold for e.g. gst = transmit d t (var 1F)
+-- required property does not hold for e.g. gst = transmit d t (var 1)
 -- (because applying the lemma non-inductively..?)
-COI.Equiv.force (ind2coi-substS σ g (rec gst)) = COI.≈'-trans (COI.≈'-trans (ind2coi-substG ⟪ σ , g ⟫ gst gst) (ind2coi-substG σ g (st-substG' 0F (rec gst) gst))) (COI.≈'-trans {!!} (COI.≈'-symm (ind2coi-substG σ (st-substG' 1F (weaken1S (rec g)) gst) (st-substG' 1F (weaken1S (rec g)) gst))))
-COI.Equiv.force (ind2coi-substS σ g (var 0F)) = COI.≈'-refl
+COI.Equiv.force (ind2coi-substS σ g (rec gst)) = {!!} -- COI.≈'-trans (COI.≈'-trans (ind2coi-substG ⟪ σ , g ⟫ gst gst) (ind2coi-substG σ g (st-substG' 0 (rec gst) gst))) (COI.≈'-trans {!!} (COI.≈'-symm (ind2coi-substG σ (st-substG' 1 (weaken1S (rec g)) gst) (st-substG' 1 (weaken1S (rec g)) gst))))
+COI.Equiv.force (ind2coi-substS σ g (var zero)) = COI.≈'-refl
 COI.Equiv.force (ind2coi-substS {n} σ g (var (suc x))) = {!!}
 
 
@@ -766,8 +766,8 @@ ind2coi-substG σ g end = COI.eq-end
 -- unfolding vs simultaneous substitution: special, needed case
 st-unfold : {n : ℕ} (σ : Stack n) (s : IND.SType n) →
   ind2coiS ε (stack-sim-substS (stack-transform (stack2StackS σ)) s) ≈ ind2coiS σ s
-st-unfold {0F} ε s rewrite (stack-sim-substS-refl s) = COI.≈-refl
-st-unfold {suc n} ⟪ σ , x ⟫ s = {!st-unfold σ (st-substS' 0F (rec x) s)!} -- provable if lemm 1 & lemm 2 hold
+st-unfold {0} ε s rewrite (stack-sim-substS-refl s) = COI.≈-refl
+st-unfold {suc n} ⟪ σ , x ⟫ s = {!st-unfold σ (st-substS' 0 (rec x) s)!} -- provable if lemm 1 & lemm 2 hold
 
 
 -- unfolding vs simultaneous substitution: general case
@@ -803,7 +803,7 @@ COI.Equiv.force (stack-unfoldS' i σ σ' (var x)) = {!!}
 
 getMCl-get : (x : Fin n) (σ : Stack n)
   → getMCl x (stack2StackMCl σ) ≡ (stack2StackMCl (proj₁ (get x σ)) , mclG ⟪ stack2StackS (proj₁ (get x σ)) , rec (proj₂ (get x σ)) ⟫  (proj₂ (get x σ)))
-getMCl-get 0F ⟪ σ , x ⟫ = refl
+getMCl-get zero ⟪ σ , x ⟫ = refl
 getMCl-get (suc x) ⟪ σ , x₁ ⟫ = getMCl-get x σ
 
 ----------------------------------------------------------------------
@@ -831,11 +831,11 @@ mcl-equiv-T σ TInt = COI.eq-int
 mcl-equiv-T σ (TPair t t₁) = COI.eq-pair (mcl-equiv-T σ t) (mcl-equiv-T σ t₁)
 mcl-equiv-T {n} σ (TChan x) = COI.eq-chan {!!}
 
-σ : Stack 1F
+σ : Stack 1
 σ = ⟪ ε , end ⟫
 
-g : GType 2F
-g = transmit SND TInt (var 1F)
+g : GType 2
+g = transmit SND TInt (var (suc zero))
 
 s : COI.SType
 s = ind2coiS σ (rec g)
@@ -857,7 +857,7 @@ COI.Equiv.force s≈s' = COI.eq-transmit SND COI.eq-int (record { force = COI.eq
 -- problem: cannot formulate this for SType since Stack requires a GType
 
 stack-unfold-lemmaG : {m n : ℕ} (σ : Stack n) (σ' : Stack' n m) (g : GType (suc (n + m))) →
-  ind2coiG ⟪ σ , stack-sim-substG'-top (weaken1-Stack'Sn 0F (stack-transform' (stack'2Stack'S σ'))) g ⟫ (stack-sim-substG'-top (weaken1-Stack'Sn 0F (stack-transform' (stack'2Stack'S σ'))) g)
+  ind2coiG ⟪ σ , stack-sim-substG'-top (weaken1-Stack'Sn 0 (stack-transform' (stack'2Stack'S σ'))) g ⟫ (stack-sim-substG'-top (weaken1-Stack'Sn 0 (stack-transform' (stack'2Stack'S σ'))) g)
    ≈'
   ind2coiG σ (stack-sim-substG'-top (stack-transform' (stack'2Stack'S ⟪ σ' , g ⟫)) g)
 
@@ -884,7 +884,7 @@ stack-unfoldG' : (σ : Stack n) (σ' : Stack' n m) (g : IND.GType (n + m)) →
   ind2coiG σ (stack-sim-substG'-top (stack-transform' (stack'2Stack'S σ')) g) ≈' ind2coiG (stack-cat σ σ') g
 
 COI.Equiv.force (stack-unfoldS' σ σ' (gdd gst)) = {!!}
-COI.Equiv.force (stack-unfoldS'{n}{m} σ σ' (rec gst)) = {!!} -- {!stack-unfoldG'{suc n}{m} ⟪ σ , stack-sim-substG'-top-i≥ 1F (stack-transform' (stack'2Stack'S σ')) gst ⟫ (weaken1-Stack' 0F σ') gst!}
+COI.Equiv.force (stack-unfoldS'{n}{m} σ σ' (rec gst)) = {!!} -- {!stack-unfoldG'{suc n}{m} ⟪ σ , stack-sim-substG'-top-i≥ 1 (stack-transform' (stack'2Stack'S σ')) gst ⟫ (weaken1-Stack' 0 σ') gst!}
 COI.Equiv.force (stack-unfoldS' σ σ' (var x)) = {!!}
 
 -}
